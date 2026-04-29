@@ -1,0 +1,12 @@
+name = "cookidoo-freshness"
+main = "workers/index.js"
+compatibility_date = "2024-09-23"
+
+# Secrets (COOKIDOO_EMAIL, COOKIDOO_PASSWORD) are set via:
+#   Local dev  → .dev.vars file (gitignored)
+#   Production → Cloudflare dashboard → Workers & Pages → cookidoo-freshness → Settings → Variables
+
+[[kv_namespaces]]
+binding     = "COOKIDOO_KV"
+id          = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+preview_id  = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

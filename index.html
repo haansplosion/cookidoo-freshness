@@ -364,6 +364,14 @@
       { name: 'Other',            keywords: [], fridge: 3, freezer: 60 },
     ];
 
+    // ── API Configuration ─────────────────────────────────────────────────────
+    // Local dev  (wrangler dev):  http://localhost:8787
+    // Production (Cloudflare):    https://cookidoo-freshness.workers.dev
+    // To switch, change the production URL below — nowhere else needs touching.
+    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+      ? 'http://localhost:8787'
+      : 'https://cookidoo-freshness.workers.dev';
+
     // ── Utils ─────────────────────────────────────────────────────────────────
     function escHtml(str) {
       return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -378,7 +386,7 @@
 
     async function remoteGet(key) {
       try {
-        const r = await fetchWithTimeout('/.netlify/functions/storage?action=get&key=' + key, {}, 8000);
+        const r = await fetchWithTimeout(API_BASE + '/storage?action=get&key=' + key, {}, 8000);
         const d = await r.json();
         if (!r.ok) return { ok: false };
         if (d.value === null || d.value === undefined) return { ok: true, value: null };
@@ -389,7 +397,7 @@
 
     async function remoteSet(key, value) {
       try {
-        const r = await fetchWithTimeout('/.netlify/functions/storage?action=set&key=' + key,
+        const r = await fetchWithTimeout(API_BASE + '/storage?action=set&key=' + key,
           { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) }, 10000);
         return r.ok;
       } catch { return false; }
@@ -590,7 +598,7 @@
       btn.textContent = 'Signing in…';
 
       try {
-        const res = await fetchWithTimeout('/.netlify/functions/auth', {
+        const res = await fetchWithTimeout(API_BASE + '/auth', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
@@ -618,7 +626,7 @@
       btn.classList.add('syncing');
       setStatus('Syncing with Cookidoo…', 'warn');
       try {
-        const res = await fetchWithTimeout('/.netlify/functions/scrape', { method: 'GET' }, 30000);
+        const res = await fetchWithTimeout(API_BASE + '/scrape', { method: 'GET' }, 30000);
         const data = await res.json();
         if (res.status === 400 && data.error === 'no_auth') { openSignIn(); return; }
         if (res.status === 401) { showToast('🔑 Session expired — please sign in again'); openSignIn(); return; }
@@ -656,7 +664,7 @@
 
       if (email && password) {
         try {
-          const res = await fetchWithTimeout('/.netlify/functions/auth', {
+          const res = await fetchWithTimeout(API_BASE + '/auth', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
@@ -737,7 +745,7 @@
       shelfLife = localGet('shelfLife', DEFAULT_SHELF_LIFE);
       bestBefore = localGet('bestBefore', {});
 
-      const ping = await fetchWithTimeout('/.netlify/functions/storage?action=ping', {}, 6000).catch(() => null);
+      const ping = await fetchWithTimeout(API_BASE + '/storage?action=ping', {}, 6000).catch(() => null);
       if (ping && ping.ok) {
         const pingData = await ping.json();
         if (pingData.has_pat && pingData.has_site_id) {

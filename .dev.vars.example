@@ -1,0 +1,6 @@
+# Copy this file to .dev.vars and fill in your values.
+# .dev.vars is gitignored and never committed — it is Cloudflare's
+# equivalent of .env for local wrangler dev secrets.
+
+COOKIDOO_EMAIL=your@email.com
+COOKIDOO_PASSWORD=your_password_here

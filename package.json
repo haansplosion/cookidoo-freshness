@@ -1,4 +1,10 @@
 {
   "name": "cookidoo-freshness",
-  "version": "1.0.0"
+  "version": "1.0.0",
+  "dependencies": {
+    "node-html-parser": "^6.1.13"
+  },
+  "devDependencies": {
+    "wrangler": "^4.86.0"
+  }
 }

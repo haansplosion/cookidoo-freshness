@@ -4,6 +4,9 @@
 .env.*
 !.env.example
 
+# Cloudflare local dev secrets
+.dev.vars
+
 # Netlify local dev
 .netlify/
 
