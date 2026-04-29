@@ -8,5 +8,5 @@ compatibility_date = "2024-09-23"
 
 [[kv_namespaces]]
 binding     = "COOKIDOO_KV"
-id          = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
-preview_id  = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id          = "549693cf8ef24398a4dc735856fb4a23"
+preview_id  = "549693cf8ef24398a4dc735856fb4a23"

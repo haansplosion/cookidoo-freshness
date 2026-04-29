@@ -5,124 +5,118 @@ A web app that scrapes the user's Cookidoo "Recently Cooked" list and tracks foo
 
 ## Owner
 - GitHub: https://github.com/haansplosion/cookidoo-freshness
-- Branches:
-  - `main` — stable, cookie-based auth, Netlify hosting
-  - `feature/option-b-python-auth` — OAuth via Vorwerk login, Netlify hosting (current production branch)
-  - `feature/cloudflare-github-pages` — OAuth auth, **Cloudflare Workers + KV backend**, GitHub Pages frontend
+- This branch: `feature/cloudflare-github-pages`
+- Other branches: `main` (old Netlify cookie auth), `feature/option-b-python-auth` (Netlify OAuth)
 
 ## Tech stack
-- Frontend: Vanilla HTML/CSS/JS (`index.html`) — no framework
-- Backend: Netlify Functions (Node.js)
-- Storage: Netlify Blobs
-- Hosting: Netlify (also used via `netlify dev` for local development)
+- Frontend: Vanilla HTML/CSS/JS (`index.html`) — no framework, served via GitHub Pages
+- Backend: Cloudflare Workers (3 handlers behind a single worker router)
+- Storage: Cloudflare KV (binding name: `COOKIDOO_KV`)
+- Hosting: GitHub Pages (frontend) + Cloudflare Workers (backend)
 
 ## Project location
 `~/Library/Mobile Documents/com~apple~CloudDocs/Development/Claude Projects/cookidoo-freshness/`
 
 ## File structure
 ```
-index.html                        # Full frontend app (served by Netlify OR GitHub Pages)
-netlify.toml                      # Netlify config (feature/option-b-python-auth + main)
-netlify/functions/
-  auth.js                         # OAuth token exchange via Vorwerk login endpoint (Netlify)
-  scrape.js                       # Fetches Cookidoo cooking history HTML, parses recipes (Netlify)
-  storage.js                      # Netlify Blobs read/write wrapper (Netlify)
-  package.json                    # @netlify/blobs, node-html-parser
-workers/                          # Cloudflare Workers (feature/cloudflare-github-pages only)
-  index.js                        # Router — maps /auth, /scrape, /storage to handlers
-  auth.js                         # OAuth token exchange via Vorwerk login endpoint (CF)
-  scrape.js                       # Fetches Cookidoo cooking history HTML, parses recipes (CF)
-  storage.js                      # Cloudflare KV read/write wrapper (CF)
-wrangler.toml                     # Cloudflare Workers config + KV binding
-.dev.vars                         # Local CF secrets — gitignored (COOKIDOO_EMAIL, COOKIDOO_PASSWORD)
+index.html                        # Full frontend app — served by GitHub Pages
+workers/
+  index.js                        # Worker entry point — routes /auth /scrape /storage
+  auth.js                         # OAuth token exchange + refresh via Vorwerk login
+  scrape.js                       # Fetches Cookidoo cooking history HTML, parses recipes
+  storage.js                      # Cloudflare KV ping/get/set wrapper
+wrangler.toml                     # Cloudflare Workers config + KV namespace binding
+.dev.vars                         # Local dev secrets — gitignored
 .dev.vars.example                 # Safe template — committed to git
-.github/workflows/deploy.yml      # GitHub Actions: deploys index.html to GitHub Pages on push
-.env                              # Local Netlify secrets — gitignored
-.env.example                      # Safe template — committed to git
-.gitignore                        # Blocks .env, .dev.vars, node_modules, .netlify/, .DS_Store
+.github/workflows/deploy.yml      # GitHub Actions: auto-deploys index.html to GitHub Pages
+.gitignore
 CLAUDE.md                         # This file
-README.md                         # Setup instructions
-package.json                      # Root deps: node-html-parser (used by Cloudflare Workers build)
+README.md
+package.json                      # node-html-parser (runtime) + wrangler (dev)
 ```
 
 ## Environment variables
-
-### Netlify branches (main, feature/option-b-python-auth)
-| Variable | Where | Purpose |
+| Variable | Local (`.dev.vars`) | Production |
 |---|---|---|
-| `NETLIFY_PAT` | `.env` + Netlify site settings | Netlify Blobs auth |
-| `COOKIDOO_EMAIL` | `.env` + Netlify site settings | Cookidoo login email for OAuth |
-| `COOKIDOO_PASSWORD` | `.env` + Netlify site settings | Cookidoo login password for OAuth |
-| `SITE_ID` | Auto-injected by Netlify | No action needed |
+| `COOKIDOO_EMAIL` | Set manually | Cloudflare dashboard → Workers → Settings → Variables |
+| `COOKIDOO_PASSWORD` | Set manually | Cloudflare dashboard → Workers → Settings → Variables |
 
-### Cloudflare branch (feature/cloudflare-github-pages)
-| Variable | Where | Purpose |
-|---|---|---|
-| `COOKIDOO_EMAIL` | `.dev.vars` (local) + CF dashboard (prod) | Cookidoo login email for OAuth |
-| `COOKIDOO_PASSWORD` | `.dev.vars` (local) + CF dashboard (prod) | Cookidoo login password for OAuth |
-
-`NETLIFY_PAT` and `SITE_ID` are **not needed** — Cloudflare KV is accessed via the `COOKIDOO_KV` binding, no token required.
-
-**Note:** Cookie-based auth has been fully removed. OAuth is the only auth method.
+No `NETLIFY_PAT` or `SITE_ID` needed — KV is accessed via the `COOKIDOO_KV` binding, no token required.
 
 ## How authentication works
-1. On first run (or if no token exists), the app auto-pops a clean sign-in modal
+1. On first run (or if no token exists), the app auto-pops a sign-in modal
 2. User enters Cookidoo email + password
-3. `auth.js` POSTs credentials to `eu.login.vorwerk.com/oauth2/token` (Vorwerk OAuth endpoint, same as Android app)
-4. Access token + refresh token are stored in Netlify Blobs (`oauthToken` key)
-5. On subsequent syncs, `scrape.js` reads the token from Blobs and auto-refreshes if expired
-6. Locally, `COOKIDOO_EMAIL` + `COOKIDOO_PASSWORD` in `.env` means the token is obtained automatically on first `netlify dev` run — sign-in modal won't appear
+3. `workers/auth.js` POSTs credentials to `eu.login.vorwerk.com/oauth2/token` (Vorwerk OAuth, same as Android app)
+4. Access token + refresh token are stored in Cloudflare KV under key `oauthToken`
+5. On subsequent syncs, `workers/scrape.js` calls `getValidToken()` which auto-refreshes if expired
+6. If `COOKIDOO_EMAIL`/`COOKIDOO_PASSWORD` are set in `.dev.vars`, the token is obtained automatically — sign-in modal won't appear
 
 **Sign-in modal behaviour:**
-- Auto-opens if `scrape.js` returns `no_auth` or `401`
+- Auto-opens if scrape returns `no_auth` or `401`
 - Not dismissable by clicking outside (intentional — app is unusable without auth)
 - Enter key submits the form
 - Errors display inline in the modal
 
 ## How scraping works
-- `scrape.js` fetches `/organize/en-AU/cooking-history` server-side using the OAuth Bearer token
+- `workers/scrape.js` fetches `/organize/en-AU/cooking-history` server-side using OAuth Bearer token
 - The response is server-rendered HTML containing `<core-tile>` elements
 - Each tile has `data-recipe-id` and `<organize-date-replacer iso-date="...">` — parsed for recipe name + cook timestamp
 - Pagination: `<organize-paged-content stop-after="N">` → pages fetched as `?page=2`, `?page=3` etc (max 10)
-- Results saved to Netlify Blobs as `cookHistory`
+- Results saved to KV as `cookHistory`
+- Cookie-based auth has been fully removed — OAuth is the only auth method
 
-## Netlify Blobs setup (critical conventions)
-- Store name: `cookidoo-freshness-store`
-- Always use: `getStore({ name, siteID: process.env.SITE_ID, token: process.env.NETLIFY_PAT })`
-- `@netlify/blobs` MUST be in `netlify/functions/package.json`, NOT root `package.json`
-- Deploy via CLI only: `netlify deploy --prod` — not via Netlify Drop
-- `NETLIFY_PAT` must be set in Netlify site env vars for deployed functions
-- Blob keys in use: `oauthToken`, `cookHistory`, `bestBefore`
+## Cloudflare Workers architecture
+
+### Routing
+`workers/index.js` is the single entry point (set as `main` in `wrangler.toml`). It routes:
+- `GET/POST /auth` → `workers/auth.js` — login, token refresh, auth status check
+- `GET /scrape` → `workers/scrape.js` — scrapes Cookidoo, saves to KV, returns recipes
+- `GET/POST /storage?action=...&key=...` → `workers/storage.js` — KV ping/get/set
+
+All CORS headers are set on every response. OPTIONS preflight is handled at the router level.
+
+### KV keys
+`oauthToken`, `cookHistory`, `bestBefore`
+
+### API_BASE in index.html
+The `API_BASE` constant at the top of the `<script>` block auto-selects:
+- `http://localhost:8787` when running locally
+- `https://cookidoo-freshness.workers.dev` in production (update with your actual subdomain after first deploy)
 
 ## Local dev
-
-### Netlify (main / feature/option-b-python-auth)
 ```bash
-cd netlify/functions && npm install && cd ../..
-netlify dev
-# Opens at http://localhost:8888
-# .env is auto-read by netlify dev — no extra setup needed
-```
-
-### Cloudflare Workers (feature/cloudflare-github-pages)
-```bash
-npm install                        # installs node-html-parser for wrangler bundling
-cp .dev.vars.example .dev.vars     # fill in COOKIDOO_EMAIL and COOKIDOO_PASSWORD
+npm install                        # installs node-html-parser + wrangler
+cp .dev.vars.example .dev.vars     # then fill in COOKIDOO_EMAIL and COOKIDOO_PASSWORD
 npx wrangler dev                   # starts worker on http://localhost:8787
-# Open index.html directly in a browser (file://) or: npx serve .
+# Open index.html in a browser (file://) or: npx serve .
 ```
 
-Before deploying to Cloudflare production:
-1. Create a KV namespace: `npx wrangler kv namespace create COOKIDOO_KV`
-2. Paste the returned `id` into `wrangler.toml` under `[[kv_namespaces]]`
-3. Set secrets: `npx wrangler secret put COOKIDOO_EMAIL` and `npx wrangler secret put COOKIDOO_PASSWORD`
-4. Deploy: `npx wrangler deploy`
+## Deploying to production
+
+### First-time setup
+```bash
+# 1. Create the KV namespace
+npx wrangler kv namespace create COOKIDOO_KV
+# → copy the returned id into wrangler.toml [[kv_namespaces]] id field
+
+# 2. Set production secrets
+npx wrangler secret put COOKIDOO_EMAIL
+npx wrangler secret put COOKIDOO_PASSWORD
+
+# 3. Deploy the worker
+npx wrangler deploy
+# → note the workers.dev URL and update API_BASE in index.html
+```
+
+### GitHub Pages
+Push to this branch — GitHub Actions (`.github/workflows/deploy.yml`) deploys `index.html` automatically.
+Enable Pages in repo settings: **Settings → Pages → Source → GitHub Actions**.
 
 ## Git workflow (safe — token never in chat)
 ```bash
 export GH_TOKEN=your_token_here   # Set in terminal only, never paste in chat
 git remote set-url origin https://$GH_TOKEN@github.com/haansplosion/cookidoo-freshness.git
-git checkout feature/option-b-python-auth   # or main
+git checkout feature/cloudflare-github-pages
 git add .
 git commit -m "your message"
 git push
@@ -138,7 +132,7 @@ git push
   - Cook date (left) + Eaten checkbox (right) — same row
   - Freshness badge (left) + Fridge/Freezer toggle (right) — same row
 - Card click → opens expiry editor modal
-- Fridge/Freezer toggle → instantly recalculates expiry, saves to Blobs
+- Fridge/Freezer toggle → instantly recalculates expiry, saves to KV
 - Eaten checkbox → dims card to 50% opacity, shows "Eaten" badge
 
 ### Freshness badge
@@ -173,31 +167,13 @@ git push
 
 Category is detected by keyword matching against recipe name (lowercase).
 
-## Cloudflare Workers architecture (feature/cloudflare-github-pages)
-
-### How the single worker handles routing
-`workers/index.js` is the entry point (`main` in `wrangler.toml`). It routes:
-- `GET/POST /auth` → `workers/auth.js` — login, token refresh, auth status check
-- `GET /scrape` → `workers/scrape.js` — scrapes Cookidoo, saves to KV, returns recipes
-- `GET/POST /storage?action=...&key=...` — KV ping/get/set (same API surface as Netlify version)
-
-All CORS headers are set on every response. OPTIONS preflight is handled in the router.
-
-### KV keys used
-Same as Netlify Blobs: `oauthToken`, `cookHistory`, `bestBefore`
-
-### GitHub Pages
-`index.html` is served directly from the repo root via GitHub Actions (`.github/workflows/deploy.yml`).
-Deploys automatically on every push to `feature/cloudflare-github-pages`.
-The `API_BASE` constant in `index.html` switches automatically between local (`localhost:8787`) and production (`cookidoo-freshness.workers.dev`) based on `window.location.hostname`.
-
 ## Current status
-- `feature/option-b-python-auth` — OAuth working, deployed to Netlify production (`cookidoo-freshness.netlify.app`)
-- `feature/cloudflare-github-pages` — Cloudflare Workers port complete, wrangler dev verified locally
-- `main` — stable cookie-based auth on Netlify (kept as fallback)
+- Worker starts cleanly with `wrangler dev` — verified locally
+- Bearer token auth against live Cookidoo endpoint is **unverified in production** — test after first `wrangler deploy`
 
 ## What's pending / next steps
-- Test OAuth Bearer token against live Cookidoo endpoint on Cloudflare deploy
-- Create KV namespace in Cloudflare dashboard and update `wrangler.toml` with real ID
-- Enable GitHub Pages in repo settings (source: GitHub Actions) for the CF branch
-- If Bearer token works → consider making CF branch the primary
+- Create KV namespace and update `wrangler.toml` with real ID
+- Set `COOKIDOO_EMAIL` and `COOKIDOO_PASSWORD` as Cloudflare secrets
+- Run `npx wrangler deploy` and update `API_BASE` in `index.html` with the live workers.dev URL
+- Enable GitHub Pages in repo settings (source: GitHub Actions)
+- Push branch to trigger first GitHub Pages deployment

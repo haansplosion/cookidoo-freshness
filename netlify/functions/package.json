@@ -1,8 +1,0 @@
-{
-  "name": "cookidoo-freshness-functions",
-  "version": "1.0.0",
-  "dependencies": {
-    "@netlify/blobs": "^8.1.0",
-    "node-html-parser": "^6.1.13"
-  }
-}
