@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Still Good? — Cookidoo Freshness Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,500;0,9..144,700;1,9..144,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --cream: #F7F3EC;
+      --warm-white: #FDFAF5;
+      --ink: #1C1A17;
+      --ink-60: #6B6760;
+      --ink-30: #B8B5B0;
+      --terracotta: #C4603A;
+      --terracotta-light: #F0DDD5;
+      --sage: #5A7A5E;
+      --sage-light: #D8E8D9;
+      --amber: #C4963A;
+      --amber-light: #F0E8D5;
+      --danger: #B83A3A;
+      --danger-light: #F0D5D5;
+      --blue: #4A90C4;
+      --border: rgba(28,26,23,0.1);
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(--ink); min-height: 100vh; font-size: 15px; line-height: 1.5; }
+
+    /* HEADER */
+    header { background: var(--ink); padding: 20px 32px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+    .logo { font-family: 'Fraunces', serif; font-size: 22px; font-weight: 700; color: var(--cream); letter-spacing: -0.5px; }
+    .logo span { color: var(--terracotta); }
+    .header-actions { display: flex; align-items: center; gap: 12px; }
+    .sync-btn { background: var(--terracotta); color: white; border: none; padding: 8px 20px; border-radius: 100px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; display: flex; align-items: center; gap: 8px; }
+    .sync-btn:hover { opacity: 0.85; }
+    .sync-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .sync-icon { font-size: 16px; }
+    .sync-btn.syncing .sync-icon { animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .settings-btn { background: none; border: 1px solid rgba(247,243,236,0.2); color: var(--cream); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .settings-btn:hover { background: rgba(247,243,236,0.1); }
+
+    /* STATUS BAR */
+    .status-bar { background: var(--warm-white); border-bottom: 1px solid var(--border); padding: 10px 32px; display: flex; align-items: flex-end; justify-content: space-between; font-size: 13px; color: var(--ink-60); }
+    .status-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; background: var(--ink-30); }
+    .status-dot.ok { background: var(--sage); }
+    .status-dot.warn { background: var(--amber); }
+    .status-dot.err { background: var(--danger); }
+    .filter-tabs { display: flex; gap: 4px; }
+    .filter-tab { padding: 4px 12px; border-radius: 100px; font-size: 13px; cursor: pointer; border: 1px solid var(--border); background: none; color: var(--ink-60); font-family: 'DM Sans', sans-serif; transition: all 0.15s; }
+    .filter-tab.active { background: var(--ink); color: var(--cream); border-color: var(--ink); }
+
+    /* MAIN */
+    main { max-width: 1100px; margin: 0 auto; padding: 32px; }
+
+    /* SUMMARY */
+    .summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 40px; }
+    .summary-card { background: var(--warm-white); border: 1px solid var(--border); border-radius: 16px; padding: 20px; text-align: center; }
+    .summary-card .count { font-family: 'Fraunces', serif; font-size: 40px; font-weight: 700; line-height: 1; margin-bottom: 4px; }
+    .summary-card .label { font-size: 12px; color: var(--ink-60); text-transform: uppercase; letter-spacing: 0.08em; }
+    .summary-card.safe .count { color: var(--sage); }
+    .summary-card.caution .count { color: var(--amber); }
+    .summary-card.expired .count { color: var(--danger); }
+    .summary-card.total .count { color: var(--ink); }
+
+    .section-heading { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 500; font-style: italic; color: var(--ink); margin-bottom: 20px; }
+
+    /* RECIPE GRID */
+    .recipe-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+
+    .recipe-card {
+      background: var(--warm-white);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+    }
+    .recipe-card:hover { transform: translateY(-2px); box-shadow: 0 8px 32px rgba(28,26,23,0.1); }
+    .recipe-card.status-safe { border-color: rgba(90,122,94,0.3); }
+    .recipe-card.status-caution { border-color: rgba(196,150,58,0.35); }
+    .recipe-card.status-expired { border-color: rgba(184,58,58,0.35); }
+    .recipe-card.status-eaten { opacity: 0.5; }
+
+    .recipe-card .card-image { width: 100%; height: 160px; object-fit: cover; display: block; background: var(--cream); flex-shrink: 0; }
+    .card-image-placeholder { width: 100%; height: 160px; background: var(--cream); display: flex; align-items: center; justify-content: center; font-size: 40px; flex-shrink: 0; }
+
+    /* Card body uses flex column — title top, footer bottom */
+    .card-body {
+      padding: 14px 16px 16px;
+      cursor: default;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+    }
+
+    /* Title anchored to top, max 2 lines */
+    .card-name {
+      font-family: 'Fraunces', serif;
+      font-size: 16px;
+      font-weight: 500;
+      line-height: 1.35;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      margin-bottom: 0;
+    }
+
+    /* Spacer pushes footer to bottom */
+    .card-spacer { flex: 1; min-height: 8px; }
+
+    /* BOTTOM SECTION — all anchored to bottom */
+    .card-bottom {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    /* Cooked date + eaten checkbox row */
+    .card-meta-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-cooked { font-size: 12px; color: var(--ink-60); }
+
+    .eaten-label {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 12px;
+      color: var(--ink-60);
+      cursor: pointer;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .eaten-label input[type="checkbox"] {
+      accent-color: var(--sage);
+      width: 13px;
+      height: 13px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+
+    /* Freshness badge + storage toggle row */
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* FRESHNESS BADGE — same size as toggle text */
+    .freshness-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    .freshness-badge.safe { background: var(--sage-light); color: var(--sage); }
+    .freshness-badge.caution { background: var(--amber-light); color: var(--amber); }
+    .freshness-badge.expired { background: var(--danger-light); color: var(--danger); }
+    .freshness-badge.unknown { background: var(--cream); color: var(--ink-60); border: 1px solid var(--border); }
+    .freshness-badge.eaten { background: var(--cream); color: var(--ink-30); border: 1px solid var(--border); }
+
+    /* STORAGE TOGGLE */
+    .storage-toggle {
+      display: inline-flex;
+      background: var(--cream);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 2px;
+    }
+    .storage-toggle button {
+      border: none;
+      background: none;
+      padding: 4px 10px;
+      border-radius: 100px;
+      font-size: 12px;
+      font-weight: 500;
+      font-family: 'DM Sans', sans-serif;
+      cursor: pointer;
+      color: var(--ink-60);
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .storage-toggle button.active { background: var(--warm-white); box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+    .storage-toggle button.fridge.active { color: var(--sage); }
+    .storage-toggle button.freezer.active { color: var(--blue); }
+
+    /* EMPTY STATE */
+    .empty-state { text-align: center; padding: 80px 32px; }
+    .empty-state .emoji { font-size: 64px; margin-bottom: 20px; }
+    .empty-state h2 { font-family: 'Fraunces', serif; font-size: 28px; font-weight: 500; margin-bottom: 10px; }
+    .empty-state p { color: var(--ink-60); margin-bottom: 28px; max-width: 400px; margin-left: auto; margin-right: auto; }
+    .btn-primary { background: var(--terracotta); color: white; border: none; padding: 12px 28px; border-radius: 100px; font-family: 'DM Sans', sans-serif; font-size: 15px; font-weight: 500; cursor: pointer; transition: opacity 0.2s; display: inline-flex; align-items: center; gap: 8px; }
+    .btn-primary:hover { opacity: 0.85; }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(28,26,23,0.6); z-index: 200; display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; pointer-events: none; transition: opacity 0.2s; }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal { background: var(--warm-white); border-radius: 24px; padding: 32px; width: 100%; max-width: 440px; max-height: 90vh; overflow-y: auto; transform: translateY(16px); transition: transform 0.2s; }
+    .modal-overlay.open .modal { transform: none; }
+    .modal h2 { font-family: 'Fraunces', serif; font-size: 24px; font-weight: 700; margin-bottom: 6px; }
+    .modal p.sub { color: var(--ink-60); font-size: 14px; margin-bottom: 24px; line-height: 1.6; }
+    .modal label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; color: var(--ink-60); text-transform: uppercase; letter-spacing: 0.06em; }
+    .modal input, .modal select { width: 100%; padding: 12px 14px; border: 1px solid var(--border); border-radius: 12px; font-family: 'DM Sans', sans-serif; font-size: 14px; background: var(--cream); color: var(--ink); margin-bottom: 16px; outline: none; transition: border-color 0.15s; }
+    .modal input:focus, .modal select:focus { border-color: var(--terracotta); }
+    .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
+    .btn-secondary { background: none; border: 1px solid var(--border); color: var(--ink); padding: 10px 22px; border-radius: 100px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .btn-secondary:hover { background: var(--cream); }
+
+    .shelf-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 18px; }
+    .shelf-table th { text-align: left; font-size: 12px; font-weight: 500; color: var(--ink-60); text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .shelf-table td { padding: 8px 10px; border-bottom: 1px solid var(--border); }
+    .shelf-table input[type="number"] { width: 70px; margin-bottom: 0; padding: 6px 10px; font-size: 13px; }
+
+    .loading { display: flex; align-items: center; justify-content: center; padding: 80px; flex-direction: column; gap: 16px; color: var(--ink-60); }
+    .spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--terracotta); border-radius: 50%; animation: spin 0.8s linear infinite; }
+
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: var(--cream); padding: 12px 24px; border-radius: 100px; font-size: 14px; z-index: 999; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+
+    /* SIGN IN MODAL — first run */
+    .signin-modal .modal { max-width: 400px; }
+    .signin-modal .modal h2 { margin-bottom: 4px; }
+    .signin-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
+    .signin-brand .thermomix-icon { font-size: 28px; }
+    .signin-error { background: var(--danger-light); border: 1px solid var(--danger); color: var(--danger); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
+    .signin-error.show { display: block; }
+
+    @media (max-width: 680px) {
+      header { padding: 16px 20px; }
+      main { padding: 20px; }
+      .summary { grid-template-columns: repeat(2, 1fr); }
+      .status-bar { flex-direction: column; gap: 10px; align-items: flex-start; }
+      .logo { font-size: 18px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="logo">Still <span>Good?</span></div>
+    <div class="header-actions">
+      <button class="sync-btn" id="syncBtn" onclick="syncNow()">
+        <span class="sync-icon">↻</span> Sync Cookidoo
+      </button>
+      <button class="settings-btn" onclick="openSettings()" title="Settings">⚙</button>
+    </div>
+  </header>
+
+  <div class="status-bar">
+    <div id="statusText">
+      <span class="status-dot" id="statusDot"></span>
+      <span id="statusMsg">Loading…</span>
+    </div>
+    <div class="filter-tabs">
+      <button class="filter-tab active" onclick="setFilter('all', this)">All</button>
+      <button class="filter-tab" onclick="setFilter('safe', this)">✓ Fresh</button>
+      <button class="filter-tab" onclick="setFilter('caution', this)">⚠ Use Soon</button>
+      <button class="filter-tab" onclick="setFilter('expired', this)">✕ Expired</button>
+    </div>
+  </div>
+
+  <main>
+    <div class="summary" id="summary" style="display:none;">
+      <div class="summary-card total"><div class="count" id="countTotal">0</div><div class="label">Total Dishes</div></div>
+      <div class="summary-card safe"><div class="count" id="countSafe">0</div><div class="label">Still Fresh</div></div>
+      <div class="summary-card caution"><div class="count" id="countCaution">0</div><div class="label">Use Soon</div></div>
+      <div class="summary-card expired"><div class="count" id="countExpired">0</div><div class="label">Expired</div></div>
+    </div>
+    <div id="mainContent">
+      <div class="loading"><div class="spinner"></div><span>Loading your kitchen…</span></div>
+    </div>
+  </main>
+
+  <!-- SIGN IN MODAL — shown on first run or when auth is missing -->
+  <div class="modal-overlay signin-modal" id="signinModal">
+    <div class="modal">
+      <div class="signin-brand">
+        <span class="thermomix-icon">🍳</span>
+        <div>
+          <h2>Sign in to Cookidoo</h2>
+          <p style="font-size:13px;color:var(--ink-60);margin:0;">Your credentials are stored securely and never leave your server.</p>
+        </div>
+      </div>
+      <div class="signin-error" id="signinError"></div>
+      <label>Email</label>
+      <input type="email" id="signinEmail" placeholder="you@example.com" autocomplete="email">
+      <label>Password</label>
+      <input type="password" id="signinPassword" placeholder="Your Cookidoo password" autocomplete="current-password">
+      <div class="modal-footer" style="justify-content:stretch;">
+        <button class="btn-primary" style="width:100%;justify-content:center;" id="signinBtn" onclick="doSignIn()">Sign in</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- SETTINGS MODAL -->
+  <div class="modal-overlay" id="settingsModal">
+    <div class="modal" style="max-width:520px;">
+      <h2>⚙ Settings</h2>
+      <p class="sub">Update your Cookidoo login or adjust shelf life defaults.</p>
+
+      <label>Email</label>
+      <input type="email" id="settingsEmail" placeholder="you@example.com">
+      <label>New Password <span style="font-weight:300;text-transform:none;letter-spacing:0;">(leave blank to keep current)</span></label>
+      <input type="password" id="settingsPassword" placeholder="Leave blank to keep existing login">
+
+      <label style="margin-top:4px;">Default Shelf Life (days)</label>
+      <table class="shelf-table">
+        <thead><tr><th>Category</th><th>Fridge</th><th>Freezer</th></tr></thead>
+        <tbody id="shelfTableBody"></tbody>
+      </table>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
+        <button class="btn-primary" onclick="saveSettings()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- EXPIRY EDITOR MODAL -->
+  <div class="modal-overlay" id="expiryModal">
+    <div class="modal" style="max-width:380px;">
+      <h2 id="expiryModalTitle">Edit Expiry</h2>
+      <p class="sub" id="expiryModalSub"></p>
+      <label>Days until expiry (from cook date)</label>
+      <input type="number" id="expiryDays" min="1" max="730" value="3">
+      <label>Or set a specific use-by date</label>
+      <input type="date" id="expiryDate">
+      <p style="font-size:12px;color:var(--ink-60);margin-top:-10px;margin-bottom:18px;">Leave date blank to use days count above.</p>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeExpiryModal()">Cancel</button>
+        <button class="btn-primary" onclick="saveExpiry()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    let allRecipes = [];
+    let bestBefore = {};
+    let shelfLife = [];
+    let lastSynced = null;
+    let currentFilter = 'all';
+    let storageMode = 'local';
+    let editingKey = null;
+
+    const DEFAULT_SHELF_LIFE = [
+      { name: 'Meat / Poultry',   keywords: ['chicken','beef','pork','lamb','mince','steak','ribs','tinga','stroganoff','gyros'], fridge: 3, freezer: 90 },
+      { name: 'Fish / Seafood',   keywords: ['fish','salmon','tuna','prawn','seafood','shrimp'], fridge: 2, freezer: 60 },
+      { name: 'Rice / Pasta',     keywords: ['rice','pasta','risotto','arroz','noodle','pad thai'], fridge: 4, freezer: 60 },
+      { name: 'Soup / Stock',     keywords: ['soup','broth','stock','miso'], fridge: 4, freezer: 90 },
+      { name: 'Dairy / Eggs',     keywords: ['egg','cheese','cream','yoghurt','yogurt','mash','potato'], fridge: 3, freezer: 30 },
+      { name: 'Vegetables',       keywords: ['veg','salad','wrap','onion','garlic'], fridge: 5, freezer: 90 },
+      { name: 'Other',            keywords: [], fridge: 3, freezer: 60 },
+    ];
+
+    // ── Utils ─────────────────────────────────────────────────────────────────
+    function escHtml(str) {
+      return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    // ── Network helpers ──────────────────────────────────────────────────────
+    function fetchWithTimeout(url, options, ms) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), ms);
+      return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+    }
+
+    async function remoteGet(key) {
+      try {
+        const r = await fetchWithTimeout('/.netlify/functions/storage?action=get&key=' + key, {}, 8000);
+        const d = await r.json();
+        if (!r.ok) return { ok: false };
+        if (d.value === null || d.value === undefined) return { ok: true, value: null };
+        try { return { ok: true, value: typeof d.value === 'string' ? JSON.parse(d.value) : d.value }; }
+        catch { return { ok: true, value: null }; }
+      } catch { return { ok: false }; }
+    }
+
+    async function remoteSet(key, value) {
+      try {
+        const r = await fetchWithTimeout('/.netlify/functions/storage?action=set&key=' + key,
+          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) }, 10000);
+        return r.ok;
+      } catch { return false; }
+    }
+
+    function localGet(key, fallback) {
+      try { const v = localStorage.getItem('cft_' + key); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+    }
+    function localSet(key, value) {
+      try { localStorage.setItem('cft_' + key, JSON.stringify(value)); } catch {}
+    }
+
+    // ── Freshness logic ──────────────────────────────────────────────────────
+    function bbKey(recipe) { return recipe.recipeId + '-' + recipe.cookedAt; }
+
+    function getShelfDays(recipe, storageType) {
+      const bb = bestBefore[bbKey(recipe)];
+      if (bb && bb.customDays && bb.customDays[storageType]) return bb.customDays[storageType];
+      const name = recipe.name.toLowerCase();
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      for (const cat of sl) {
+        if (cat.keywords && cat.keywords.some(k => name.includes(k))) return cat[storageType];
+      }
+      return DEFAULT_SHELF_LIFE.find(c => c.name === 'Other')[storageType];
+    }
+
+    function getStorage(recipe) {
+      const bb = bestBefore[bbKey(recipe)];
+      return (bb && bb.storage) ? bb.storage : 'fridge';
+    }
+
+    function isEaten(recipe) {
+      const bb = bestBefore[bbKey(recipe)];
+      return !!(bb && bb.eaten);
+    }
+
+    function getStatus(recipe) {
+      if (isEaten(recipe)) return { status: 'eaten', label: 'Eaten', days: null };
+      const storage = getStorage(recipe);
+      const bb = bestBefore[bbKey(recipe)];
+      const days = getShelfDays(recipe, storage);
+      const cookedAt = new Date(recipe.cookedAt);
+      const now = new Date();
+      let expiryDays;
+      if (bb && bb.expiryDate) {
+        expiryDays = (new Date(bb.expiryDate) - now) / 86400000;
+      } else {
+        expiryDays = days - (now - cookedAt) / 86400000;
+      }
+      if (expiryDays < 0) return { status: 'expired', label: 'Exp ' + Math.abs(Math.round(expiryDays)) + 'd ago', days: expiryDays };
+      if (expiryDays < 1) return { status: 'caution', label: 'Eat today!', days: expiryDays };
+      if (expiryDays < 2) return { status: 'caution', label: Math.ceil(expiryDays) + 'd left', days: expiryDays };
+      return { status: 'safe', label: Math.round(expiryDays) + 'd left', days: expiryDays };
+    }
+
+    // ── Storage toggle ───────────────────────────────────────────────────────
+    async function toggleStorage(recipeId, cookedAt, newStorage, event) {
+      event.stopPropagation();
+      const key = recipeId + '-' + cookedAt;
+      if (!bestBefore[key]) bestBefore[key] = {};
+      bestBefore[key].storage = newStorage;
+      localSet('bestBefore', bestBefore);
+      remoteSet('bestBefore', bestBefore);
+      render();
+    }
+
+    // ── Eaten toggle ─────────────────────────────────────────────────────────
+    async function toggleEaten(recipeId, cookedAt, checked, event) {
+      event.stopPropagation();
+      const key = recipeId + '-' + cookedAt;
+      if (!bestBefore[key]) bestBefore[key] = {};
+      bestBefore[key].eaten = checked;
+      localSet('bestBefore', bestBefore);
+      remoteSet('bestBefore', bestBefore);
+      render();
+    }
+
+    // ── Render ────────────────────────────────────────────────────────────────
+    function render() {
+      const container = document.getElementById('mainContent');
+      const summaryEl = document.getElementById('summary');
+
+      const filtered = currentFilter === 'all'
+        ? allRecipes
+        : allRecipes.filter(r => getStatus(r).status === currentFilter);
+
+      let safe = 0, caution = 0, expired = 0;
+      for (const r of allRecipes) {
+        const s = getStatus(r).status;
+        if (s === 'safe') safe++;
+        else if (s === 'caution') caution++;
+        else if (s === 'expired') expired++;
+      }
+
+      if (allRecipes.length > 0) {
+        summaryEl.style.display = 'grid';
+        document.getElementById('countTotal').textContent = allRecipes.length;
+        document.getElementById('countSafe').textContent = safe;
+        document.getElementById('countCaution').textContent = caution;
+        document.getElementById('countExpired').textContent = expired;
+      } else {
+        summaryEl.style.display = 'none';
+      }
+
+      if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty-state"><div class="emoji">' +
+          (allRecipes.length === 0 ? '🍽️' : '✓') + '</div><h2>' +
+          (allRecipes.length === 0 ? 'No cooking history yet' : 'Nothing here') + '</h2><p>' +
+          (allRecipes.length === 0 ? 'Syncing your Cookidoo account…' : 'Try a different filter.') + '</p></div>';
+        return;
+      }
+
+      const cards = filtered.map(recipe => {
+        const key = bbKey(recipe);
+        const { status, label } = getStatus(recipe);
+        const storage = getStorage(recipe);
+        const eaten = isEaten(recipe);
+        const cookedDate = new Date(recipe.cookedAt);
+        const cookedStr = cookedDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
+
+        const imgHtml = recipe.imgSrc
+          ? '<img class="card-image" src="' + recipe.imgSrc + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=card-image-placeholder>🍳</div>\'">'
+          : '<div class="card-image-placeholder">🍳</div>';
+
+        const badgeClass = status === 'eaten' ? 'eaten' : status;
+        const badgeIcon = { safe: '✓', caution: '⚠', expired: '✕', eaten: '✓' }[status] || '?';
+        const safeKey = key.replace(/[^a-zA-Z0-9]/g, '_');
+
+        return '<div class="recipe-card status-' + (eaten ? 'eaten' : status) + '" onclick="openExpiryModal(\'' + recipe.recipeId + '\',\'' + recipe.cookedAt + '\',\'' + encodeURIComponent(recipe.name) + '\')">' +
+          imgHtml +
+          '<div class="card-body">' +
+            '<div class="card-name">' + escHtml(recipe.name) + '</div>' +
+            '<div class="card-spacer"></div>' +
+            '<div class="card-bottom">' +
+              '<div class="card-meta-row">' +
+                '<span class="card-cooked">Cooked ' + cookedStr + '</span>' +
+                '<label class="eaten-label" onclick="event.stopPropagation()">' +
+                  '<input type="checkbox" ' + (eaten ? 'checked' : '') +
+                    ' onchange="toggleEaten(\'' + recipe.recipeId + '\',\'' + recipe.cookedAt + '\',this.checked,event)"> Eaten' +
+                '</label>' +
+              '</div>' +
+              '<div class="card-footer">' +
+                '<span class="freshness-badge ' + badgeClass + '">' + badgeIcon + ' ' + label + '</span>' +
+                '<div class="storage-toggle" onclick="event.stopPropagation()">' +
+                  '<button class="fridge ' + (storage === 'fridge' ? 'active' : '') + '" onclick="toggleStorage(\'' + recipe.recipeId + '\',\'' + recipe.cookedAt + '\',\'fridge\',event)">🧊 Fridge</button>' +
+                  '<button class="freezer ' + (storage === 'freezer' ? 'active' : '') + '" onclick="toggleStorage(\'' + recipe.recipeId + '\',\'' + recipe.cookedAt + '\',\'freezer\',event)">❄️ Freezer</button>' +
+                '</div>' +
+              '</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>';
+      }).join('');
+
+      container.innerHTML = '<p class="section-heading">Recently Cooked</p><div class="recipe-grid">' + cards + '</div>';
+    }
+
+    function setFilter(f, btn) {
+      currentFilter = f;
+      document.querySelectorAll('.filter-tab').forEach(t => t.classList.remove('active'));
+      btn.classList.add('active');
+      render();
+    }
+
+    // ── Status bar ───────────────────────────────────────────────────────────
+    function setStatus(msg, type) {
+      document.getElementById('statusMsg').textContent = msg;
+      document.getElementById('statusDot').className = 'status-dot' + (type ? ' ' + type : '');
+    }
+
+    function updateStatusAfterLoad(authLabel) {
+      const syncedStr = lastSynced
+        ? new Date(lastSynced).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : 'never';
+      const label = authLabel || (storageMode === 'remote' ? '☁' : '📱 Local');
+      setStatus(label + ' · Last updated ' + syncedStr, storageMode === 'remote' ? 'ok' : 'warn');
+    }
+
+    // ── Sign in (first run modal) ─────────────────────────────────────────────
+    function openSignIn() {
+      document.getElementById('signinModal').classList.add('open');
+      setTimeout(() => document.getElementById('signinEmail').focus(), 200);
+    }
+
+    function closeSignIn() {
+      document.getElementById('signinModal').classList.remove('open');
+    }
+
+    async function doSignIn() {
+      const email    = document.getElementById('signinEmail').value.trim();
+      const password = document.getElementById('signinPassword').value.trim();
+      const errEl    = document.getElementById('signinError');
+      const btn      = document.getElementById('signinBtn');
+
+      errEl.classList.remove('show');
+      if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; errEl.classList.add('show'); return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+
+      try {
+        const res = await fetchWithTimeout('/.netlify/functions/auth', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        }, 20000);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+        closeSignIn();
+        showToast('✓ Signed in to Cookidoo');
+        syncNow();
+      } catch(err) {
+        errEl.textContent = err.message.includes('no_credentials') || err.message.includes('Auth failed')
+          ? 'Incorrect email or password. Please try again.'
+          : 'Could not connect — check your internet connection.';
+        errEl.classList.add('show');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign in';
+      }
+    }
+
+    // ── Sync ─────────────────────────────────────────────────────────────────
+    async function syncNow() {
+      const btn = document.getElementById('syncBtn');
+      btn.disabled = true;
+      btn.classList.add('syncing');
+      setStatus('Syncing with Cookidoo…', 'warn');
+      try {
+        const res = await fetchWithTimeout('/.netlify/functions/scrape', { method: 'GET' }, 30000);
+        const data = await res.json();
+        if (res.status === 400 && data.error === 'no_auth') { openSignIn(); return; }
+        if (res.status === 401) { showToast('🔑 Session expired — please sign in again'); openSignIn(); return; }
+        if (!res.ok) throw new Error(data.error || 'Sync failed');
+        allRecipes = data.recipes || [];
+        lastSynced = data.lastSynced;
+        updateStatusAfterLoad('🔑 OAuth');
+        render();
+        showToast('✓ Synced ' + allRecipes.length + ' dishes');
+      } catch (err) {
+        setStatus('Sync failed', 'err');
+        showToast('✕ ' + err.message);
+      } finally {
+        btn.disabled = false;
+        btn.classList.remove('syncing');
+      }
+    }
+
+    // ── Settings modal ────────────────────────────────────────────────────────
+    function openSettings() {
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      document.getElementById('shelfTableBody').innerHTML = sl.map((cat, i) =>
+        '<tr><td>' + cat.name + '</td>' +
+        '<td><input type="number" id="sl_fridge_' + i + '" value="' + cat.fridge + '" min="1" max="365"></td>' +
+        '<td><input type="number" id="sl_freezer_' + i + '" value="' + cat.freezer + '" min="1" max="730"></td></tr>'
+      ).join('');
+      document.getElementById('settingsModal').classList.add('open');
+    }
+
+    function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
+
+    async function saveSettings() {
+      const email    = document.getElementById('settingsEmail').value.trim();
+      const password = document.getElementById('settingsPassword').value.trim();
+
+      if (email && password) {
+        try {
+          const res = await fetchWithTimeout('/.netlify/functions/auth', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+          }, 15000);
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Login failed');
+          showToast('✓ Credentials updated');
+        } catch(err) {
+          showToast('✕ Login failed: ' + err.message);
+        }
+      }
+
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      shelfLife = sl.map((cat, i) => ({
+        ...cat,
+        fridge: parseInt(document.getElementById('sl_fridge_' + i)?.value || cat.fridge),
+        freezer: parseInt(document.getElementById('sl_freezer_' + i)?.value || cat.freezer),
+      }));
+      localSet('shelfLife', shelfLife);
+      await remoteSet('bestBefore', bestBefore);
+      closeSettings();
+      render();
+      showToast('✓ Settings saved');
+    }
+
+    // ── Expiry modal ─────────────────────────────────────────────────────────
+    function openExpiryModal(recipeId, cookedAt, encodedName) {
+      editingKey = recipeId + '-' + cookedAt;
+      const name = decodeURIComponent(encodedName);
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
+      const storage = getStorage(recipe || { recipeId, cookedAt });
+      const days = getShelfDays(recipe || { recipeId, cookedAt, name }, storage);
+      document.getElementById('expiryModalTitle').textContent = name;
+      document.getElementById('expiryModalSub').textContent = 'Cooked ' + new Date(cookedAt).toLocaleString('en-AU');
+      const bb = bestBefore[editingKey];
+      document.getElementById('expiryDays').value = (bb && bb.customDays && bb.customDays[storage]) ? bb.customDays[storage] : days;
+      document.getElementById('expiryDate').value = (bb && bb.expiryDate) ? bb.expiryDate : '';
+      document.getElementById('expiryModal').classList.add('open');
+    }
+
+    function closeExpiryModal() { document.getElementById('expiryModal').classList.remove('open'); editingKey = null; }
+
+    async function saveExpiry() {
+      if (!editingKey) return;
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
+      const storage = getStorage(recipe);
+      const days = parseInt(document.getElementById('expiryDays').value) || 3;
+      const expiryDate = document.getElementById('expiryDate').value || null;
+      if (!bestBefore[editingKey]) bestBefore[editingKey] = {};
+      if (!bestBefore[editingKey].customDays) bestBefore[editingKey].customDays = {};
+      bestBefore[editingKey].customDays[storage] = days;
+      bestBefore[editingKey].expiryDate = expiryDate;
+      bestBefore[editingKey].updatedAt = new Date().toISOString();
+      localSet('bestBefore', bestBefore);
+      await remoteSet('bestBefore', bestBefore);
+      closeExpiryModal();
+      render();
+      showToast('✓ Expiry saved');
+    }
+
+    // ── Toast ─────────────────────────────────────────────────────────────────
+    let toastTimer;
+    function showToast(msg) {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
+    }
+
+    // ── Enter key on sign in ──────────────────────────────────────────────────
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && document.getElementById('signinModal').classList.contains('open')) doSignIn();
+    });
+
+    // ── Init ──────────────────────────────────────────────────────────────────
+    async function init() {
+      shelfLife = localGet('shelfLife', DEFAULT_SHELF_LIFE);
+      bestBefore = localGet('bestBefore', {});
+
+      const ping = await fetchWithTimeout('/.netlify/functions/storage?action=ping', {}, 6000).catch(() => null);
+      if (ping && ping.ok) {
+        const pingData = await ping.json();
+        if (pingData.has_pat && pingData.has_site_id) {
+          storageMode = 'remote';
+          const bbResult = await remoteGet('bestBefore');
+          if (bbResult.ok && bbResult.value) { bestBefore = { ...bestBefore, ...bbResult.value }; localSet('bestBefore', bestBefore); }
+          const histResult = await remoteGet('cookHistory');
+          if (histResult.ok && histResult.value) {
+            allRecipes = histResult.value.recipes || [];
+            lastSynced = histResult.value.lastSynced;
+            updateStatusAfterLoad('🔑 OAuth');
+          }
+        }
+      }
+
+      if (allRecipes.length === 0) {
+        const local = localGet('cookHistory', null);
+        if (local) { allRecipes = local.recipes || []; lastSynced = local.lastSynced; }
+      }
+
+      if (allRecipes.length === 0) setStatus('Syncing…', 'warn');
+      else updateStatusAfterLoad();
+      render();
+
+      // Auto-sync — will open sign-in modal if no token found
+      syncNow();
+    }
+
+    document.getElementById('settingsModal').addEventListener('click', e => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
+    document.getElementById('expiryModal').addEventListener('click', e => { if (e.target === document.getElementById('expiryModal')) closeExpiryModal(); });
+    // Sign in modal is intentionally not dismissable by clicking outside
+
+    init();
+  </script>
+</body>
+</html>

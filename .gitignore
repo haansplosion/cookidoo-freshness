@@ -1,0 +1,21 @@
+# Environment variables — NEVER commit these
+.env
+.env.local
+.env.*
+!.env.example
+
+# Netlify local dev
+.netlify/
+
+# Node
+node_modules/
+netlify/functions/node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+*.swp
