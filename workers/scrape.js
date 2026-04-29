@@ -12,7 +12,7 @@ function json(body, status = 200) {
   return new Response(JSON.stringify(body), { status, headers: CORS });
 }
 
-async function fetchPage(accessToken, page) {
+async function fetchPage(authHeader, page) {
   const url = 'https://cookidoo.com.au/organize/en-AU/cooking-history' +
     (page > 1 ? '?page=' + page : '');
   const res = await fetch(url, {
@@ -21,7 +21,7 @@ async function fetchPage(accessToken, page) {
       'accept-language': 'en-US,en;q=0.9',
       'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
       'x-requested-with': 'xmlhttprequest',
-      Authorization: 'Bearer ' + accessToken,
+      ...authHeader,
     },
   });
   if (!res.ok) throw new Error('HTTP ' + res.status + ' fetching page ' + page);
@@ -52,14 +52,14 @@ function parseRecipes(html) {
   return { recipes, totalPages: stopAfter };
 }
 
-async function scrapeAll(accessToken) {
-  const html1 = await fetchPage(accessToken, 1);
+async function scrapeAll(authHeader) {
+  const html1 = await fetchPage(authHeader, 1);
   const { recipes: page1Recipes, totalPages } = parseRecipes(html1);
   let allRecipes = [...page1Recipes];
   const maxPages = Math.min(totalPages, 10);
   for (let p = 2; p <= maxPages; p++) {
     try {
-      const html = await fetchPage(accessToken, p);
+      const html = await fetchPage(authHeader, p);
       const { recipes } = parseRecipes(html);
       allRecipes = allRecipes.concat(recipes);
     } catch (e) {
@@ -79,24 +79,33 @@ async function scrapeAll(accessToken) {
 export async function handleScrape(request, env) {
   const kv = env.COOKIDOO_KV;
   try {
-    let accessToken;
+    let authHeader;
+    let authMethod;
+
+    // Try 1: OAuth Bearer token
     try {
-      accessToken = await getValidToken(kv, env.COOKIDOO_EMAIL, env.COOKIDOO_PASSWORD);
-    } catch (err) {
-      if (err.message === 'no_credentials') {
-        return json({ error: 'no_auth', message: 'No credentials. Sign in via the app.' }, 400);
+      const accessToken = await getValidToken(kv, env.COOKIDOO_EMAIL, env.COOKIDOO_PASSWORD);
+      authHeader = { Authorization: 'Bearer ' + accessToken };
+      authMethod = 'oauth';
+    } catch (oauthErr) {
+      // Try 2: Session cookie from KV, then env var fallback
+      const cookieFromKV = await kv.get('cookieString');
+      const cookieString = cookieFromKV || env.COOKIDOO_COOKIE || null;
+      if (!cookieString) {
+        return json({ error: 'no_auth', message: 'No auth available. Add your Cookidoo session cookie in Settings.' }, 400);
       }
-      throw err;
+      authHeader = { cookie: cookieString };
+      authMethod = 'cookie';
     }
 
-    const allRecipes = await scrapeAll(accessToken);
+    const allRecipes = await scrapeAll(authHeader);
     const lastSynced = new Date().toISOString();
-    await kv.put('cookHistory', JSON.stringify({ recipes: allRecipes, lastSynced, authMethod: 'oauth' }));
+    await kv.put('cookHistory', JSON.stringify({ recipes: allRecipes, lastSynced, authMethod }));
 
-    return json({ ok: true, count: allRecipes.length, recipes: allRecipes, lastSynced, authMethod: 'oauth' });
+    return json({ ok: true, count: allRecipes.length, recipes: allRecipes, lastSynced, authMethod });
   } catch (err) {
     if (err.message.includes('401') || err.message.includes('403')) {
-      return json({ error: 'auth_expired', message: 'Auth expired. Sign in again.' }, 401);
+      return json({ error: 'auth_expired', message: 'Auth expired. Update your cookie in Settings.' }, 401);
     }
     return json({ error: err.message }, 500);
   }

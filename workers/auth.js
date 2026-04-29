@@ -1,7 +1,7 @@
-const TOKEN_URL = 'https://eu.login.vorwerk.com/oauth2/token';
-const CLIENT_ID = 'technicaluser_public';
-const CLIENT_SECRET = '';
-const SCOPE = 'openid offline_access';
+const TOKEN_URL = 'https://au.tmmobile.vorwerk-digital.com/ciam/auth/token';
+const CLIENT_ID = 'kupferwerk-client-nwot';
+const CLIENT_SECRET = 'Ls50ON1woySqs1dCdJge';
+const AUTH_HEADER = 'Basic ' + btoa(CLIENT_ID + ':' + CLIENT_SECRET);
 
 const CORS = {
   'Content-Type': 'application/json',
@@ -18,16 +18,17 @@ async function fetchNewToken(email, password) {
   const body = new URLSearchParams({
     grant_type: 'password',
     client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
     username: email,
     password,
-    scope: SCOPE,
-    market: 'au',
   });
 
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+      Authorization: AUTH_HEADER,
+    },
     body: body.toString(),
   });
 
@@ -48,13 +49,16 @@ async function doRefresh(storedRefreshToken) {
   const body = new URLSearchParams({
     grant_type: 'refresh_token',
     client_id: CLIENT_ID,
-    client_secret: CLIENT_SECRET,
     refresh_token: storedRefreshToken,
   });
 
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Accept: 'application/json' },
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded',
+      Accept: 'application/json',
+      Authorization: AUTH_HEADER,
+    },
     body: body.toString(),
   });
 

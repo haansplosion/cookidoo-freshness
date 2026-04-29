@@ -46,7 +46,7 @@ No `NETLIFY_PAT` or `SITE_ID` needed — KV is accessed via the `COOKIDOO_KV` bi
 ## How authentication works
 1. On first run (or if no token exists), the app auto-pops a sign-in modal
 2. User enters Cookidoo email + password
-3. `workers/auth.js` POSTs credentials to `eu.login.vorwerk.com/oauth2/token` (Vorwerk OAuth, same as Android app)
+3. `workers/auth.js` POSTs credentials to `au.tmmobile.vorwerk-digital.com/ciam/auth/token` (Vorwerk mobile CIAM — source: miaucl/cookidoo-api)
 4. Access token + refresh token are stored in Cloudflare KV under key `oauthToken`
 5. On subsequent syncs, `workers/scrape.js` calls `getValidToken()` which auto-refreshes if expired
 6. If `COOKIDOO_EMAIL`/`COOKIDOO_PASSWORD` are set in `.dev.vars`, the token is obtained automatically — sign-in modal won't appear
@@ -63,7 +63,7 @@ No `NETLIFY_PAT` or `SITE_ID` needed — KV is accessed via the `COOKIDOO_KV` bi
 - Each tile has `data-recipe-id` and `<organize-date-replacer iso-date="...">` — parsed for recipe name + cook timestamp
 - Pagination: `<organize-paged-content stop-after="N">` → pages fetched as `?page=2`, `?page=3` etc (max 10)
 - Results saved to KV as `cookHistory`
-- Cookie-based auth has been fully removed — OAuth is the only auth method
+- If OAuth fails, `scrape.js` falls back to a session cookie stored in KV (`cookieString` key) or `env.COOKIDOO_COOKIE`
 
 ## Cloudflare Workers architecture
 
@@ -172,8 +172,5 @@ Category is detected by keyword matching against recipe name (lowercase).
 - Bearer token auth against live Cookidoo endpoint is **unverified in production** — test after first `wrangler deploy`
 
 ## What's pending / next steps
-- Create KV namespace and update `wrangler.toml` with real ID
-- Set `COOKIDOO_EMAIL` and `COOKIDOO_PASSWORD` as Cloudflare secrets
-- Run `npx wrangler deploy` and update `API_BASE` in `index.html` with the live workers.dev URL
-- Enable GitHub Pages in repo settings (source: GitHub Actions)
-- Push branch to trigger first GitHub Pages deployment
+- Verify OAuth login works end-to-end with real Cookidoo credentials via deployed worker
+- Monitor KV token expiry / refresh cycle in production
