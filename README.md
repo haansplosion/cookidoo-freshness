@@ -4,80 +4,71 @@ Tracks your Cookidoo recently cooked list and calculates best-before dates so yo
 
 ## How it works
 
-- A Netlify function scrapes your Cookidoo cooking history page using your session cookie
+- A GitHub Actions workflow authenticates with your Cookidoo account via OAuth and scrapes your cooking history
 - Recipe names + cook timestamps are parsed from the server-rendered HTML
+- Results are committed to `data/cook-history.json` and served via GitHub Pages
 - Best-before dates are calculated per dish category (fridge and freezer)
-- All data is stored in Netlify Blobs — no database needed
+- User preferences (fridge/freezer choice, eaten status, custom expiry) are stored in your browser's localStorage
 
 ## Setup
 
-### 1. Clone and install
+### 1. Fork or clone this repo and push to GitHub
+
+Make sure `feature/cloudflare-github-pages` is set as the default branch:
+**Settings → General → Default branch**
+
+### 2. Enable GitHub Pages
+
+**Settings → Pages → Source → GitHub Actions**
+
+Also allow the branch in environment protection rules if prompted:
+**Settings → Environments → github-pages → Deployment branches → Add rule → `feature/cloudflare-github-pages`**
+
+### 3. Add your Cookidoo credentials as repository secrets
+
+**Settings → Secrets and variables → Actions → New repository secret**
+
+| Secret | Value |
+|---|---|
+| `COOKIDOO_EMAIL` | Your Cookidoo login email |
+| `COOKIDOO_PASSWORD` | Your Cookidoo password |
+
+### 4. Run the first scrape
+
+**Actions tab → Scrape Cookidoo → Run workflow**
+
+This will scrape your cooking history, commit the data, and trigger a Pages deployment. The live site will show your recipes once both workflows complete (~1–2 minutes).
+
+### 5. Connect the Sync button (optional but recommended)
+
+The **↻ Sync Cookidoo** button in the app can trigger a live scrape directly. It needs a GitHub personal access token stored in your browser:
+
+1. Go to **github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
+2. Repository access: **Only select repositories → cookidoo-freshness**
+3. Permission: **Actions → Read and write** (nothing else needed)
+4. Copy the token
+5. Click **↻ Sync Cookidoo** in the app — a one-time prompt will ask you to paste it
+
+The token is saved to your browser's localStorage only. It is never committed or sent anywhere except GitHub's API.
+
+## Syncing
+
+- **Automatic**: every 6 hours via scheduled GitHub Actions
+- **Manual from app**: click **↻ Sync Cookidoo** (requires the one-time token setup above)
+- **Manual from GitHub**: Actions tab → Scrape Cookidoo → Run workflow
+
+## Local development
+
 ```bash
-git clone https://github.com/yourusername/cookidoo-freshness.git
-cd cookidoo-freshness
-cd netlify/functions && npm install && cd ../..
+npm install
+COOKIDOO_EMAIL=you@example.com COOKIDOO_PASSWORD=yourpassword node scripts/scrape.js
+# Then open index.html in a browser — it reads ./data/cook-history.json
 ```
-
-### 2. Create your .env file
-```bash
-cp .env.example .env
-```
-Fill in your values in `.env` — this file is gitignored and never committed.
-
-### 3. Get your Netlify Personal Access Token
-- Go to: https://app.netlify.com/user/applications
-- Click **New access token** → name it `cookidoo-freshness` → copy it
-- Add it to `.env` as `NETLIFY_PAT`
-
-### 4. Get your Cookidoo session cookie
-1. Log into [cookidoo.com.au](https://cookidoo.com.au)
-2. Open DevTools (F12) → Network tab → reload the page
-3. Find the `cooking-history` HTML document request
-4. Click it → Headers → scroll to Request Headers
-5. Copy the full `cookie:` value
-6. Add it to `.env` as `COOKIDOO_COOKIE`
-
-### 5. Deploy
-```bash
-netlify login       # first time only
-netlify init        # first time only — create new site
-netlify deploy --prod
-```
-
-### 6. Add environment variables in Netlify
-Netlify dashboard → your site → **Site configuration → Environment variables**
-
-Add both:
-- `NETLIFY_PAT` — your personal access token from step 3
-- `COOKIDOO_COOKIE` — your session cookie from step 4
-
-Then redeploy:
-```bash
-netlify deploy --prod
-```
-
-### 7. Test locally
-```bash
-netlify dev
-```
-Open http://localhost:8888 and click **Sync Cookidoo**.
-
-## Updating your cookie
-
-Cookidoo sessions expire periodically (weeks to months). When sync fails:
-1. Repeat step 4 above to get a fresh cookie
-2. Either paste it in the app via ⚙ Settings (saved to Blobs, no redeploy needed)
-3. Or update `COOKIDOO_COOKIE` in Netlify env vars and redeploy
 
 ## Branches
 
-- `main` — stable, deployed version
-- `feature/option-b-python-auth` — experimental proper OAuth auth via cookidoo-api library
-
-## Environment variables reference
-
-| Variable | Where to set | Description |
-|---|---|---|
-| `NETLIFY_PAT` | Netlify env vars + `.env` | Personal access token for Blobs auth |
-| `COOKIDOO_COOKIE` | Netlify env vars + `.env` | Cookidoo session cookie for scraping |
-| `SITE_ID` | Auto-injected by Netlify | No action needed |
+| Branch | Description |
+|---|---|
+| `feature/cloudflare-github-pages` | Current — GitHub Pages + GitHub Actions |
+| `main` | Old — Netlify + cookie auth |
+| `feature/option-b-python-auth` | Old — Netlify + OAuth |
