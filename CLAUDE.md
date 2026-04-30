@@ -1,7 +1,7 @@
 # Cookidoo Freshness Tracker — Project Context
 
 ## What this project does
-A web app that scrapes the user's Cookidoo "Recently Cooked" list and tracks food freshness/best-before dates. It shows recipe cards with fridge/freezer toggles, an "Eaten" checkbox, and auto-calculates expiry dates by food category. Auto-syncs on every page load.
+A web app that scrapes the user's Cookidoo "Recently Cooked" list and tracks food freshness/best-before dates. It shows recipe cards with fridge/freezer toggles, an "Eaten" checkbox, and auto-calculates expiry dates by food category.
 
 ## Owner
 - GitHub: https://github.com/haansplosion/cookidoo-freshness
@@ -10,9 +10,9 @@ A web app that scrapes the user's Cookidoo "Recently Cooked" list and tracks foo
 
 ## Tech stack
 - Frontend: Vanilla HTML/CSS/JS (`index.html`) — no framework, served via GitHub Pages
-- Backend: Cloudflare Workers (3 handlers behind a single worker router)
-- Storage: Cloudflare KV (binding name: `COOKIDOO_KV`)
-- Hosting: GitHub Pages (frontend) + Cloudflare Workers (backend)
+- Scraping: GitHub Actions workflow (scheduled + manual trigger)
+- Storage: `data/cook-history.json` (committed to repo, served by GitHub Pages) + `localStorage` for user preferences
+- Hosting: GitHub Pages only — no backend service
 
 ## Project location
 `~/Library/Mobile Documents/com~apple~CloudDocs/Development/Claude Projects/cookidoo-freshness/`
@@ -20,101 +20,78 @@ A web app that scrapes the user's Cookidoo "Recently Cooked" list and tracks foo
 ## File structure
 ```
 index.html                        # Full frontend app — served by GitHub Pages
-workers/
-  index.js                        # Worker entry point — routes /auth /scrape /storage
-  auth.js                         # OAuth token exchange + refresh via Vorwerk login
-  scrape.js                       # Fetches Cookidoo cooking history HTML, parses recipes
-  storage.js                      # Cloudflare KV ping/get/set wrapper
-wrangler.toml                     # Cloudflare Workers config + KV namespace binding
-.dev.vars                         # Local dev secrets — gitignored
-.dev.vars.example                 # Safe template — committed to git
-.github/workflows/deploy.yml      # GitHub Actions: auto-deploys index.html to GitHub Pages
+scripts/
+  scrape.js                       # Node.js script: OAuth → scrape → writes data/cook-history.json
+data/
+  cook-history.json               # Committed scrape output — read directly by index.html
+.github/workflows/
+  deploy.yml                      # Auto-deploys index.html to GitHub Pages on push
+  scrape.yml                      # Runs scrape.js on schedule (every 6h) + workflow_dispatch
+package.json                      # node-html-parser dependency
 .gitignore
 CLAUDE.md                         # This file
 README.md
-package.json                      # node-html-parser (runtime) + wrangler (dev)
 ```
 
-## Environment variables
-| Variable | Local (`.dev.vars`) | Production |
-|---|---|---|
-| `COOKIDOO_EMAIL` | Set manually | Cloudflare dashboard → Workers → Settings → Variables |
-| `COOKIDOO_PASSWORD` | Set manually | Cloudflare dashboard → Workers → Settings → Variables |
+## Environment variables / secrets
+| Variable | Where set |
+|---|---|
+| `COOKIDOO_EMAIL` | GitHub repo → Settings → Secrets → Actions |
+| `COOKIDOO_PASSWORD` | GitHub repo → Settings → Secrets → Actions |
 
-No `NETLIFY_PAT` or `SITE_ID` needed — KV is accessed via the `COOKIDOO_KV` binding, no token required.
+No tokens, PATs, or service keys needed beyond these two credentials.
 
 ## How authentication works
-1. On first run (or if no token exists), the app auto-pops a sign-in modal
-2. User enters Cookidoo email + password
-3. `workers/auth.js` POSTs credentials to `au.tmmobile.vorwerk-digital.com/ciam/auth/token` (Vorwerk mobile CIAM — source: miaucl/cookidoo-api)
-4. Access token + refresh token are stored in Cloudflare KV under key `oauthToken`
-5. On subsequent syncs, `workers/scrape.js` calls `getValidToken()` which auto-refreshes if expired
-6. If `COOKIDOO_EMAIL`/`COOKIDOO_PASSWORD` are set in `.dev.vars`, the token is obtained automatically — sign-in modal won't appear
+1. `scripts/scrape.js` runs inside GitHub Actions (Azure infrastructure — not Cloudflare)
+2. It POSTs credentials to `au.tmmobile.vorwerk-digital.com/ciam/auth/token` (Vorwerk mobile CIAM)
+3. Client credentials: `client_id=kupferwerk-client-nwot`, `client_secret=Ls50ON1woySqs1dCdJge`, via `Authorization: Basic` header
+4. The Bearer token is used to fetch `cookidoo.com.au/organize/en-AU/cooking-history`
 
-**Sign-in modal behaviour:**
-- Auto-opens if scrape returns `no_auth` or `401`
-- Not dismissable by clicking outside (intentional — app is unusable without auth)
-- Enter key submits the form
-- Errors display inline in the modal
+**Why not Cloudflare Workers?**
+The Vorwerk CIAM endpoint is behind Cloudflare Bot Management. Requests from Cloudflare Workers (same network) are rejected with 404 "default backend". GitHub Actions (Azure) reaches it fine.
 
 ## How scraping works
-- `workers/scrape.js` fetches `/organize/en-AU/cooking-history` server-side using OAuth Bearer token
+- `scripts/scrape.js` fetches `/organize/en-AU/cooking-history` pages using the Bearer token
 - The response is server-rendered HTML containing `<core-tile>` elements
 - Each tile has `data-recipe-id` and `<organize-date-replacer iso-date="...">` — parsed for recipe name + cook timestamp
 - Pagination: `<organize-paged-content stop-after="N">` → pages fetched as `?page=2`, `?page=3` etc (max 10)
-- Results saved to KV as `cookHistory`
-- If OAuth fails, `scrape.js` falls back to a session cookie stored in KV (`cookieString` key) or `env.COOKIDOO_COOKIE`
+- Output written to `data/cook-history.json` and committed back to the repo
 
-## Cloudflare Workers architecture
+## How the frontend works
+- `index.html` fetches `./data/cook-history.json` directly (same GitHub Pages domain, no CORS)
+- The "↻ Sync Cookidoo" button re-fetches the JSON with a cache-bust query param
+- All user preferences (fridge/freezer choice, eaten status, custom expiry) stored in `localStorage`
+- Settings modal only shows shelf life defaults (no credentials — those are in GitHub secrets)
+- No sign-in modal, no backend API calls
 
-### Routing
-`workers/index.js` is the single entry point (set as `main` in `wrangler.toml`). It routes:
-- `GET/POST /auth` → `workers/auth.js` — login, token refresh, auth status check
-- `GET /scrape` → `workers/scrape.js` — scrapes Cookidoo, saves to KV, returns recipes
-- `GET/POST /storage?action=...&key=...` → `workers/storage.js` — KV ping/get/set
-
-All CORS headers are set on every response. OPTIONS preflight is handled at the router level.
-
-### KV keys
-`oauthToken`, `cookHistory`, `bestBefore`
-
-### API_BASE in index.html
-The `API_BASE` constant at the top of the `<script>` block auto-selects:
-- `http://localhost:8787` when running locally
-- `https://cookidoo-freshness.workers.dev` in production (update with your actual subdomain after first deploy)
+## Triggering a scrape
+- **Automatic**: every 6 hours via cron in `scrape.yml`
+- **Manual**: GitHub repo → Actions tab → "Scrape Cookidoo" → "Run workflow"
+- The `[skip ci]` commit message on the data update prevents deploy.yml from re-triggering
 
 ## Local dev
 ```bash
-npm install                        # installs node-html-parser + wrangler
-cp .dev.vars.example .dev.vars     # then fill in COOKIDOO_EMAIL and COOKIDOO_PASSWORD
-npx wrangler dev                   # starts worker on http://localhost:8787
-# Open index.html in a browser (file://) or: npx serve .
+npm install
+# Set env vars, then:
+COOKIDOO_EMAIL=you@example.com COOKIDOO_PASSWORD=yourpassword node scripts/scrape.js
+# Open index.html in browser — it will try to fetch ./data/cook-history.json
 ```
 
-## Deploying to production
+## Deploying / setup
 
-### First-time setup
-```bash
-# 1. Create the KV namespace
-npx wrangler kv namespace create COOKIDOO_KV
-# → copy the returned id into wrangler.toml [[kv_namespaces]] id field
-
-# 2. Set production secrets
-npx wrangler secret put COOKIDOO_EMAIL
-npx wrangler secret put COOKIDOO_PASSWORD
-
-# 3. Deploy the worker
-npx wrangler deploy
-# → note the workers.dev URL and update API_BASE in index.html
-```
+### First-time GitHub setup
+1. Push this branch to GitHub
+2. Go to repo Settings → Pages → Source: GitHub Actions
+3. Allow `feature/cloudflare-github-pages` in environment protection rules
+4. Add `COOKIDOO_EMAIL` and `COOKIDOO_PASSWORD` to repo Settings → Secrets → Actions
+5. Run the "Scrape Cookidoo" workflow manually to populate `data/cook-history.json`
 
 ### GitHub Pages
-Push to this branch — GitHub Actions (`.github/workflows/deploy.yml`) deploys `index.html` automatically.
-Enable Pages in repo settings: **Settings → Pages → Source → GitHub Actions**.
+Push to this branch — GitHub Actions (`deploy.yml`) deploys `index.html` automatically.
 
 ## Git workflow (safe — token never in chat)
 ```bash
-export GH_TOKEN=your_token_here   # Set in terminal only, never paste in chat
+export GH_TOKEN=your_token_here
 git remote set-url origin https://$GH_TOKEN@github.com/haansplosion/cookidoo-freshness.git
 git checkout feature/cloudflare-github-pages
 git add .
@@ -128,30 +105,29 @@ git push
 - Recipe image (160px, full width)
 - Title: Fraunces serif, max 2 lines (`-webkit-line-clamp: 2`), anchored to top
 - Flexible spacer pushes bottom section down
-- **Bottom section (all anchored to bottom):**
-  - Cook date (left) + Eaten checkbox (right) — same row
-  - Freshness badge (left) + Fridge/Freezer toggle (right) — same row
+- **Bottom section:**
+  - Cook date (left) + Eaten checkbox (right)
+  - Freshness badge (left) + Fridge/Freezer toggle (right)
 - Card click → opens expiry editor modal
-- Fridge/Freezer toggle → instantly recalculates expiry, saves to KV
+- Fridge/Freezer toggle → instantly recalculates expiry, saves to localStorage
 - Eaten checkbox → dims card to 50% opacity, shows "Eaten" badge
 
 ### Freshness badge
-- Font size 12px (matches storage toggle text)
+- Font size 12px
 - Safe (green), Caution (amber), Expired (red), Eaten (muted)
 - Label format: "3d left", "Eat today!", "Exp 2d ago"
 
 ### Modals
-1. **Sign-in modal** — first run / auth expired, not dismissable by clicking outside
-2. **Settings modal** — update email/password, adjust shelf life defaults per category
-3. **Expiry editor** — override days count or set specific use-by date (opened by clicking a card)
+1. **Settings modal** — adjust shelf life defaults per category (no credentials)
+2. **Expiry editor** — override days count or set specific use-by date (opened by clicking a card)
 
 ### Header
 - "Still Good?" logo
-- "↻ Sync Cookidoo" button (manual refresh, also auto-runs on page load)
+- "↻ Sync Cookidoo" button (re-fetches cook-history.json)
 - ⚙ settings button
 
 ### Status bar
-- Left: status dot + last sync time + auth method (🔑 OAuth)
+- Left: status dot + last sync time (from `lastSynced` field in the JSON)
 - Right: filter tabs (All / ✓ Fresh / ⚠ Use Soon / ✕ Expired)
 
 ## Food category shelf life defaults
@@ -168,9 +144,5 @@ git push
 Category is detected by keyword matching against recipe name (lowercase).
 
 ## Current status
-- Worker starts cleanly with `wrangler dev` — verified locally
-- Bearer token auth against live Cookidoo endpoint is **unverified in production** — test after first `wrangler deploy`
-
-## What's pending / next steps
-- Verify OAuth login works end-to-end with real Cookidoo credentials via deployed worker
-- Monitor KV token expiry / refresh cycle in production
+- GitHub Actions scrape workflow: **untested in production** — run manually after first push
+- OAuth from GitHub Actions (Azure IPs) to Vorwerk CIAM: **expected to work** — different from Cloudflare Workers which is blocked

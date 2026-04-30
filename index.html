@@ -228,13 +228,6 @@
     .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--ink); color: var(--cream); padding: 12px 24px; border-radius: 100px; font-size: 14px; z-index: 999; transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); pointer-events: none; white-space: nowrap; }
     .toast.show { transform: translateX(-50%) translateY(0); }
 
-    /* SIGN IN MODAL — first run */
-    .signin-modal .modal { max-width: 400px; }
-    .signin-modal .modal h2 { margin-bottom: 4px; }
-    .signin-brand { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; }
-    .signin-brand .thermomix-icon { font-size: 28px; }
-    .signin-error { background: var(--danger-light); border: 1px solid var(--danger); color: var(--danger); border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; display: none; }
-    .signin-error.show { display: block; }
 
     @media (max-width: 680px) {
       header { padding: 16px 20px; }
@@ -282,37 +275,11 @@
     </div>
   </main>
 
-  <!-- SIGN IN MODAL — shown on first run or when auth is missing -->
-  <div class="modal-overlay signin-modal" id="signinModal">
-    <div class="modal">
-      <div class="signin-brand">
-        <span class="thermomix-icon">🍳</span>
-        <div>
-          <h2>Sign in to Cookidoo</h2>
-          <p style="font-size:13px;color:var(--ink-60);margin:0;">Your credentials are stored securely and never leave your server.</p>
-        </div>
-      </div>
-      <div class="signin-error" id="signinError"></div>
-      <label>Email</label>
-      <input type="email" id="signinEmail" placeholder="you@example.com" autocomplete="email">
-      <label>Password</label>
-      <input type="password" id="signinPassword" placeholder="Your Cookidoo password" autocomplete="current-password">
-      <div class="modal-footer" style="justify-content:stretch;">
-        <button class="btn-primary" style="width:100%;justify-content:center;" id="signinBtn" onclick="doSignIn()">Sign in</button>
-      </div>
-    </div>
-  </div>
-
   <!-- SETTINGS MODAL -->
   <div class="modal-overlay" id="settingsModal">
     <div class="modal" style="max-width:520px;">
       <h2>⚙ Settings</h2>
-      <p class="sub">Update your Cookidoo login or adjust shelf life defaults.</p>
-
-      <label>Email</label>
-      <input type="email" id="settingsEmail" placeholder="you@example.com">
-      <label>New Password <span style="font-weight:300;text-transform:none;letter-spacing:0;">(leave blank to keep current)</span></label>
-      <input type="password" id="settingsPassword" placeholder="Leave blank to keep existing login">
+      <p class="sub">Adjust shelf life defaults per food category. Syncing is handled automatically — trigger a manual sync from the Actions tab in your GitHub repo.</p>
 
       <label style="margin-top:4px;">Default Shelf Life (days)</label>
       <table class="shelf-table">
@@ -351,7 +318,6 @@
     let shelfLife = [];
     let lastSynced = null;
     let currentFilter = 'all';
-    let storageMode = 'local';
     let editingKey = null;
 
     const DEFAULT_SHELF_LIFE = [
@@ -364,43 +330,9 @@
       { name: 'Other',            keywords: [], fridge: 3, freezer: 60 },
     ];
 
-    // ── API Configuration ─────────────────────────────────────────────────────
-    // Local dev  (wrangler dev):  http://localhost:8787
-    // Production (Cloudflare):    https://cookidoo-freshness.workers.dev
-    // To switch, change the production URL below — nowhere else needs touching.
-    const API_BASE = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-      ? 'http://localhost:8787'
-      : 'https://cookidoo-freshness.cookidoo-freshness.workers.dev';
-
     // ── Utils ─────────────────────────────────────────────────────────────────
     function escHtml(str) {
       return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-    }
-
-    // ── Network helpers ──────────────────────────────────────────────────────
-    function fetchWithTimeout(url, options, ms) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), ms);
-      return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
-    }
-
-    async function remoteGet(key) {
-      try {
-        const r = await fetchWithTimeout(API_BASE + '/storage?action=get&key=' + key, {}, 8000);
-        const d = await r.json();
-        if (!r.ok) return { ok: false };
-        if (d.value === null || d.value === undefined) return { ok: true, value: null };
-        try { return { ok: true, value: typeof d.value === 'string' ? JSON.parse(d.value) : d.value }; }
-        catch { return { ok: true, value: null }; }
-      } catch { return { ok: false }; }
-    }
-
-    async function remoteSet(key, value) {
-      try {
-        const r = await fetchWithTimeout(API_BASE + '/storage?action=set&key=' + key,
-          { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(value) }, 10000);
-        return r.ok;
-      } catch { return false; }
     }
 
     function localGet(key, fallback) {
@@ -454,24 +386,22 @@
     }
 
     // ── Storage toggle ───────────────────────────────────────────────────────
-    async function toggleStorage(recipeId, cookedAt, newStorage, event) {
+    function toggleStorage(recipeId, cookedAt, newStorage, event) {
       event.stopPropagation();
       const key = recipeId + '-' + cookedAt;
       if (!bestBefore[key]) bestBefore[key] = {};
       bestBefore[key].storage = newStorage;
       localSet('bestBefore', bestBefore);
-      remoteSet('bestBefore', bestBefore);
       render();
     }
 
     // ── Eaten toggle ─────────────────────────────────────────────────────────
-    async function toggleEaten(recipeId, cookedAt, checked, event) {
+    function toggleEaten(recipeId, cookedAt, checked, event) {
       event.stopPropagation();
       const key = recipeId + '-' + cookedAt;
       if (!bestBefore[key]) bestBefore[key] = {};
       bestBefore[key].eaten = checked;
       localSet('bestBefore', bestBefore);
-      remoteSet('bestBefore', bestBefore);
       render();
     }
 
@@ -567,78 +497,40 @@
       document.getElementById('statusDot').className = 'status-dot' + (type ? ' ' + type : '');
     }
 
-    function updateStatusAfterLoad(authLabel) {
+    function updateStatusAfterLoad() {
       const syncedStr = lastSynced
         ? new Date(lastSynced).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
         : 'never';
-      const label = authLabel || (storageMode === 'remote' ? '☁' : '📱 Local');
-      setStatus(label + ' · Last updated ' + syncedStr, storageMode === 'remote' ? 'ok' : 'warn');
+      setStatus('Last synced ' + syncedStr, allRecipes.length ? 'ok' : 'warn');
     }
 
-    // ── Sign in (first run modal) ─────────────────────────────────────────────
-    function openSignIn() {
-      document.getElementById('signinModal').classList.add('open');
-      setTimeout(() => document.getElementById('signinEmail').focus(), 200);
-    }
-
-    function closeSignIn() {
-      document.getElementById('signinModal').classList.remove('open');
-    }
-
-    async function doSignIn() {
-      const email    = document.getElementById('signinEmail').value.trim();
-      const password = document.getElementById('signinPassword').value.trim();
-      const errEl    = document.getElementById('signinError');
-      const btn      = document.getElementById('signinBtn');
-
-      errEl.classList.remove('show');
-      if (!email || !password) { errEl.textContent = 'Please enter your email and password.'; errEl.classList.add('show'); return; }
-
-      btn.disabled = true;
-      btn.textContent = 'Signing in…';
-
-      try {
-        const res = await fetchWithTimeout(API_BASE + '/auth', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password })
-        }, 20000);
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Login failed');
-        closeSignIn();
-        showToast('✓ Signed in to Cookidoo');
-        syncNow();
-      } catch(err) {
-        errEl.textContent = err.message.includes('no_credentials') || err.message.includes('Auth failed')
-          ? 'Incorrect email or password. Please try again.'
-          : 'Could not connect — check your internet connection.';
-        errEl.classList.add('show');
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Sign in';
-      }
-    }
-
-    // ── Sync ─────────────────────────────────────────────────────────────────
+    // ── Sync (re-fetches the committed JSON file) ─────────────────────────────
     async function syncNow() {
       const btn = document.getElementById('syncBtn');
       btn.disabled = true;
       btn.classList.add('syncing');
-      setStatus('Syncing with Cookidoo…', 'warn');
+      setStatus('Loading…', 'warn');
       try {
-        const res = await fetchWithTimeout(API_BASE + '/scrape', { method: 'GET' }, 30000);
+        const res = await fetch('./data/cook-history.json?v=' + Date.now());
+        if (!res.ok) throw new Error('Could not load data (HTTP ' + res.status + ')');
         const data = await res.json();
-        if (res.status === 400 && data.error === 'no_auth') { openSignIn(); return; }
-        if (res.status === 401) { showToast('🔑 Session expired — please sign in again'); openSignIn(); return; }
-        if (!res.ok) throw new Error(data.error || 'Sync failed');
         allRecipes = data.recipes || [];
         lastSynced = data.lastSynced;
-        updateStatusAfterLoad('🔑 OAuth');
+        localSet('cookHistory', data);
+        updateStatusAfterLoad();
         render();
-        showToast('✓ Synced ' + allRecipes.length + ' dishes');
+        if (allRecipes.length) showToast('✓ Loaded ' + allRecipes.length + ' dishes');
       } catch (err) {
-        setStatus('Sync failed', 'err');
-        showToast('✕ ' + err.message);
+        const cached = localGet('cookHistory', null);
+        if (cached) {
+          allRecipes = cached.recipes || [];
+          lastSynced = cached.lastSynced;
+          updateStatusAfterLoad();
+          render();
+          setStatus('Offline — showing cached data', 'warn');
+        } else {
+          setStatus('No data yet — run the scrape from GitHub Actions', 'err');
+        }
       } finally {
         btn.disabled = false;
         btn.classList.remove('syncing');
@@ -658,25 +550,7 @@
 
     function closeSettings() { document.getElementById('settingsModal').classList.remove('open'); }
 
-    async function saveSettings() {
-      const email    = document.getElementById('settingsEmail').value.trim();
-      const password = document.getElementById('settingsPassword').value.trim();
-
-      if (email && password) {
-        try {
-          const res = await fetchWithTimeout(API_BASE + '/auth', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-          }, 15000);
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Login failed');
-          showToast('✓ Credentials updated');
-        } catch(err) {
-          showToast('✕ Login failed: ' + err.message);
-        }
-      }
-
+    function saveSettings() {
       const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
       shelfLife = sl.map((cat, i) => ({
         ...cat,
@@ -684,7 +558,6 @@
         freezer: parseInt(document.getElementById('sl_freezer_' + i)?.value || cat.freezer),
       }));
       localSet('shelfLife', shelfLife);
-      await remoteSet('bestBefore', bestBefore);
       closeSettings();
       render();
       showToast('✓ Settings saved');
@@ -707,7 +580,7 @@
 
     function closeExpiryModal() { document.getElementById('expiryModal').classList.remove('open'); editingKey = null; }
 
-    async function saveExpiry() {
+    function saveExpiry() {
       if (!editingKey) return;
       const recipe = allRecipes.find(r => bbKey(r) === editingKey);
       const storage = getStorage(recipe);
@@ -719,7 +592,6 @@
       bestBefore[editingKey].expiryDate = expiryDate;
       bestBefore[editingKey].updatedAt = new Date().toISOString();
       localSet('bestBefore', bestBefore);
-      await remoteSet('bestBefore', bestBefore);
       closeExpiryModal();
       render();
       showToast('✓ Expiry saved');
@@ -735,48 +607,25 @@
       toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     }
 
-    // ── Enter key on sign in ──────────────────────────────────────────────────
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && document.getElementById('signinModal').classList.contains('open')) doSignIn();
-    });
-
     // ── Init ──────────────────────────────────────────────────────────────────
     async function init() {
       shelfLife = localGet('shelfLife', DEFAULT_SHELF_LIFE);
       bestBefore = localGet('bestBefore', {});
 
-      const ping = await fetchWithTimeout(API_BASE + '/storage?action=ping', {}, 6000).catch(() => null);
-      if (ping && ping.ok) {
-        const pingData = await ping.json();
-        if (pingData.has_pat && pingData.has_site_id) {
-          storageMode = 'remote';
-          const bbResult = await remoteGet('bestBefore');
-          if (bbResult.ok && bbResult.value) { bestBefore = { ...bestBefore, ...bbResult.value }; localSet('bestBefore', bestBefore); }
-          const histResult = await remoteGet('cookHistory');
-          if (histResult.ok && histResult.value) {
-            allRecipes = histResult.value.recipes || [];
-            lastSynced = histResult.value.lastSynced;
-            updateStatusAfterLoad('🔑 OAuth');
-          }
-        }
+      // Show cached data immediately while fresh fetch loads
+      const cached = localGet('cookHistory', null);
+      if (cached) {
+        allRecipes = cached.recipes || [];
+        lastSynced = cached.lastSynced;
+        updateStatusAfterLoad();
+        render();
       }
 
-      if (allRecipes.length === 0) {
-        const local = localGet('cookHistory', null);
-        if (local) { allRecipes = local.recipes || []; lastSynced = local.lastSynced; }
-      }
-
-      if (allRecipes.length === 0) setStatus('Syncing…', 'warn');
-      else updateStatusAfterLoad();
-      render();
-
-      // Auto-sync — will open sign-in modal if no token found
-      syncNow();
+      await syncNow();
     }
 
     document.getElementById('settingsModal').addEventListener('click', e => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
     document.getElementById('expiryModal').addEventListener('click', e => { if (e.target === document.getElementById('expiryModal')) closeExpiryModal(); });
-    // Sign in modal is intentionally not dismissable by clicking outside
 
     init();
   </script>
