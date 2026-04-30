@@ -229,6 +229,9 @@
     .toast.show { transform: translateX(-50%) translateY(0); }
 
 
+    .pat-hint { font-size: 12px; color: var(--ink-60); margin-top: -10px; margin-bottom: 16px; line-height: 1.6; }
+    .pat-hint a { color: var(--terracotta); }
+
     @media (max-width: 680px) {
       header { padding: 16px 20px; }
       main { padding: 20px; }
@@ -293,6 +296,24 @@
     </div>
   </div>
 
+  <!-- GITHUB TOKEN MODAL — one-time setup for triggering scrapes -->
+  <div class="modal-overlay" id="patModal">
+    <div class="modal" style="max-width:460px;">
+      <h2>Connect GitHub</h2>
+      <p class="sub">To trigger a live scrape from this button, paste a GitHub personal access token below. It's stored only in your browser — never sent anywhere except GitHub's API.</p>
+      <label>Personal Access Token</label>
+      <input type="password" id="patInput" placeholder="github_pat_…" autocomplete="off">
+      <p class="pat-hint">
+        Create one at <strong>github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong>.<br>
+        Set repository to <strong>cookidoo-freshness</strong>, permission <strong>Actions → Read and write</strong>. No other permissions needed.
+      </p>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closePatModal()">Cancel</button>
+        <button class="btn-primary" onclick="savePat()">Save &amp; Sync</button>
+      </div>
+    </div>
+  </div>
+
   <!-- EXPIRY EDITOR MODAL -->
   <div class="modal-overlay" id="expiryModal">
     <div class="modal" style="max-width:380px;">
@@ -329,6 +350,12 @@
       { name: 'Vegetables',       keywords: ['veg','salad','wrap','onion','garlic'], fridge: 5, freezer: 90 },
       { name: 'Other',            keywords: [], fridge: 3, freezer: 60 },
     ];
+
+    // ── GitHub config ─────────────────────────────────────────────────────────
+    const GH_OWNER    = 'haansplosion';
+    const GH_REPO     = 'cookidoo-freshness';
+    const GH_WORKFLOW = 'scrape.yml';
+    const GH_BRANCH   = 'feature/cloudflare-github-pages';
 
     // ── Utils ─────────────────────────────────────────────────────────────────
     function escHtml(str) {
@@ -504,37 +531,98 @@
       setStatus('Last synced ' + syncedStr, allRecipes.length ? 'ok' : 'warn');
     }
 
-    // ── Sync (re-fetches the committed JSON file) ─────────────────────────────
+    // ── Load data from committed JSON ─────────────────────────────────────────
+    async function loadData() {
+      const res = await fetch('./data/cook-history.json?v=' + Date.now());
+      if (!res.ok) throw new Error('Could not load data (HTTP ' + res.status + ')');
+      const data = await res.json();
+      allRecipes = data.recipes || [];
+      lastSynced = data.lastSynced;
+      localSet('cookHistory', data);
+      updateStatusAfterLoad();
+      render();
+      return data;
+    }
+
+    // ── Poll until the latest Actions run finishes, then reload ───────────────
+    async function pollAndReload(pat) {
+      const deadline = Date.now() + 180000;
+      await new Promise(r => setTimeout(r, 8000));
+      while (Date.now() < deadline) {
+        try {
+          const r = await fetch(
+            'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/actions/runs?per_page=1',
+            { headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' } }
+          );
+          const d = await r.json();
+          const run = d.workflow_runs?.[0];
+          if (run && run.status === 'completed') {
+            await loadData();
+            showToast('✓ Synced ' + allRecipes.length + ' dishes');
+            return;
+          }
+          setStatus('Syncing… (' + (run ? run.status : 'queued') + ')', 'warn');
+        } catch {}
+        await new Promise(r => setTimeout(r, 6000));
+      }
+      await loadData();
+      showToast('✓ Done');
+    }
+
+    // ── Sync button — triggers GitHub Action, polls for completion ────────────
     async function syncNow() {
+      const pat = localGet('githubPat', null);
+      if (!pat) { openPatModal(); return; }
+
       const btn = document.getElementById('syncBtn');
       btn.disabled = true;
       btn.classList.add('syncing');
-      setStatus('Loading…', 'warn');
+      setStatus('Triggering scrape…', 'warn');
+
       try {
-        const res = await fetch('./data/cook-history.json?v=' + Date.now());
-        if (!res.ok) throw new Error('Could not load data (HTTP ' + res.status + ')');
-        const data = await res.json();
-        allRecipes = data.recipes || [];
-        lastSynced = data.lastSynced;
-        localSet('cookHistory', data);
-        updateStatusAfterLoad();
-        render();
-        if (allRecipes.length) showToast('✓ Loaded ' + allRecipes.length + ' dishes');
-      } catch (err) {
-        const cached = localGet('cookHistory', null);
-        if (cached) {
-          allRecipes = cached.recipes || [];
-          lastSynced = cached.lastSynced;
-          updateStatusAfterLoad();
-          render();
-          setStatus('Offline — showing cached data', 'warn');
-        } else {
-          setStatus('No data yet — run the scrape from GitHub Actions', 'err');
+        const res = await fetch(
+          'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO +
+          '/actions/workflows/' + GH_WORKFLOW + '/dispatches',
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + pat,
+              'Accept': 'application/vnd.github+json',
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ ref: GH_BRANCH }),
+          }
+        );
+        if (res.status === 401 || res.status === 403) {
+          localSet('githubPat', null);
+          openPatModal();
+          throw new Error('GitHub token invalid — please re-enter it');
         }
+        if (!res.ok) throw new Error('Could not trigger sync (HTTP ' + res.status + ')');
+        setStatus('Scraping Cookidoo…', 'warn');
+        await pollAndReload(pat);
+      } catch (err) {
+        setStatus('Sync failed', 'err');
+        showToast('✕ ' + err.message);
       } finally {
         btn.disabled = false;
         btn.classList.remove('syncing');
       }
+    }
+
+    // ── GitHub token modal ────────────────────────────────────────────────────
+    function openPatModal() {
+      document.getElementById('patInput').value = '';
+      document.getElementById('patModal').classList.add('open');
+      setTimeout(() => document.getElementById('patInput').focus(), 200);
+    }
+    function closePatModal() { document.getElementById('patModal').classList.remove('open'); }
+    function savePat() {
+      const val = document.getElementById('patInput').value.trim();
+      if (!val) return;
+      localSet('githubPat', val);
+      closePatModal();
+      syncNow();
     }
 
     // ── Settings modal ────────────────────────────────────────────────────────
@@ -621,11 +709,17 @@
         render();
       }
 
-      await syncNow();
+      try {
+        await loadData();
+      } catch {
+        if (!cached) setStatus('No data yet — press Sync Cookidoo to fetch', 'warn');
+      }
     }
 
     document.getElementById('settingsModal').addEventListener('click', e => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
     document.getElementById('expiryModal').addEventListener('click', e => { if (e.target === document.getElementById('expiryModal')) closeExpiryModal(); });
+    document.getElementById('patModal').addEventListener('click', e => { if (e.target === document.getElementById('patModal')) closePatModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('patModal').classList.contains('open')) savePat(); });
 
     init();
   </script>
