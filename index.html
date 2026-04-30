@@ -544,29 +544,32 @@
       return data;
     }
 
-    // ── Poll until the latest Actions run finishes, then reload ───────────────
-    async function pollAndReload(pat) {
-      const deadline = Date.now() + 180000;
-      await new Promise(r => setTimeout(r, 8000));
+    // ── Poll the JSON file until lastSynced changes, confirming Pages is live ──
+    async function pollAndReload() {
+      const prevSynced = lastSynced;
+      const deadline = Date.now() + 300000; // 5 min max
+      await new Promise(r => setTimeout(r, 20000)); // scrape + deploy warmup
+
       while (Date.now() < deadline) {
         try {
-          const r = await fetch(
-            'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/actions/runs?per_page=1',
-            { headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' } }
-          );
-          const d = await r.json();
-          const run = d.workflow_runs?.[0];
-          if (run && run.status === 'completed') {
-            await loadData();
-            showToast('✓ Synced ' + allRecipes.length + ' dishes');
-            return;
+          const res = await fetch('./data/cook-history.json?v=' + Date.now());
+          if (res.ok) {
+            const data = await res.json();
+            if (data.lastSynced && data.lastSynced !== prevSynced) {
+              allRecipes = data.recipes || [];
+              lastSynced = data.lastSynced;
+              localSet('cookHistory', data);
+              updateStatusAfterLoad();
+              render();
+              showToast('✓ Synced ' + allRecipes.length + ' dishes');
+              return;
+            }
           }
-          setStatus('Syncing… (' + (run ? run.status : 'queued') + ')', 'warn');
         } catch {}
-        await new Promise(r => setTimeout(r, 6000));
+        setStatus('Syncing… deploying to Pages', 'warn');
+        await new Promise(r => setTimeout(r, 10000));
       }
-      await loadData();
-      showToast('✓ Done');
+      setStatus('Sync triggered — refresh in a minute if data hasn\'t updated', 'warn');
     }
 
     // ── Sync button — triggers GitHub Action, polls for completion ────────────
@@ -600,7 +603,7 @@
         }
         if (!res.ok) throw new Error('Could not trigger sync (HTTP ' + res.status + ')');
         setStatus('Scraping Cookidoo…', 'warn');
-        await pollAndReload(pat);
+        await pollAndReload();
       } catch (err) {
         setStatus('Sync failed', 'err');
         showToast('✕ ' + err.message);
