@@ -319,7 +319,9 @@
     <div class="modal" style="max-width:380px;">
       <h2 id="expiryModalTitle">Edit Expiry</h2>
       <p class="sub" id="expiryModalSub"></p>
-      <label>Days until expiry (from cook date)</label>
+      <label>Category <span style="font-size:11px;font-weight:300;text-transform:none;letter-spacing:0;">(auto-detected from recipe name)</span></label>
+      <select id="expiryCategory" onchange="onCategoryChange()"></select>
+      <label style="margin-top:4px;">Days until expiry (from cook date)</label>
       <input type="number" id="expiryDays" min="1" max="730" value="3">
       <label>Or set a specific use-by date</label>
       <input type="date" id="expiryDate">
@@ -372,15 +374,24 @@
     // ── Freshness logic ──────────────────────────────────────────────────────
     function bbKey(recipe) { return recipe.recipeId + '-' + recipe.cookedAt; }
 
+    function getCategory(recipe) {
+      const bb = bestBefore[bbKey(recipe)];
+      if (bb && bb.category) return bb.category;
+      const name = (recipe.name || '').toLowerCase();
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      for (const cat of sl) {
+        if (cat.keywords && cat.keywords.some(k => name.includes(k))) return cat.name;
+      }
+      return 'Other';
+    }
+
     function getShelfDays(recipe, storageType) {
       const bb = bestBefore[bbKey(recipe)];
       if (bb && bb.customDays && bb.customDays[storageType]) return bb.customDays[storageType];
-      const name = recipe.name.toLowerCase();
       const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
-      for (const cat of sl) {
-        if (cat.keywords && cat.keywords.some(k => name.includes(k))) return cat[storageType];
-      }
-      return DEFAULT_SHELF_LIFE.find(c => c.name === 'Other')[storageType];
+      const catName = getCategory(recipe);
+      const cat = sl.find(c => c.name === catName) || sl[sl.length - 1];
+      return cat[storageType];
     }
 
     function getStorage(recipe) {
@@ -658,15 +669,32 @@
     function openExpiryModal(recipeId, cookedAt, encodedName) {
       editingKey = recipeId + '-' + cookedAt;
       const name = decodeURIComponent(encodedName);
-      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
-      const storage = getStorage(recipe || { recipeId, cookedAt });
-      const days = getShelfDays(recipe || { recipeId, cookedAt, name }, storage);
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || { recipeId, cookedAt, name };
+      const storage = getStorage(recipe);
+      const bb = bestBefore[editingKey];
+      const currentCategory = getCategory(recipe);
+
       document.getElementById('expiryModalTitle').textContent = name;
       document.getElementById('expiryModalSub').textContent = 'Cooked ' + new Date(cookedAt).toLocaleString('en-AU');
-      const bb = bestBefore[editingKey];
-      document.getElementById('expiryDays').value = (bb && bb.customDays && bb.customDays[storage]) ? bb.customDays[storage] : days;
+
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      document.getElementById('expiryCategory').innerHTML = sl.map(c =>
+        '<option value="' + escHtml(c.name) + '"' + (c.name === currentCategory ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'
+      ).join('');
+
+      document.getElementById('expiryDays').value = (bb && bb.customDays && bb.customDays[storage]) ? bb.customDays[storage] : getShelfDays(recipe, storage);
       document.getElementById('expiryDate').value = (bb && bb.expiryDate) ? bb.expiryDate : '';
       document.getElementById('expiryModal').classList.add('open');
+    }
+
+    function onCategoryChange() {
+      const catName = document.getElementById('expiryCategory').value;
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
+      const storage = getStorage(recipe);
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      const cat = sl.find(c => c.name === catName) || sl[sl.length - 1];
+      document.getElementById('expiryDays').value = cat[storage];
+      document.getElementById('expiryDate').value = '';
     }
 
     function closeExpiryModal() { document.getElementById('expiryModal').classList.remove('open'); editingKey = null; }
@@ -675,10 +703,12 @@
       if (!editingKey) return;
       const recipe = allRecipes.find(r => bbKey(r) === editingKey);
       const storage = getStorage(recipe);
+      const category = document.getElementById('expiryCategory').value;
       const days = parseInt(document.getElementById('expiryDays').value) || 3;
       const expiryDate = document.getElementById('expiryDate').value || null;
       if (!bestBefore[editingKey]) bestBefore[editingKey] = {};
       if (!bestBefore[editingKey].customDays) bestBefore[editingKey].customDays = {};
+      bestBefore[editingKey].category = category;
       bestBefore[editingKey].customDays[storage] = days;
       bestBefore[editingKey].expiryDate = expiryDate;
       bestBefore[editingKey].updatedAt = new Date().toISOString();
