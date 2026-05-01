@@ -305,7 +305,8 @@
       <input type="password" id="patInput" placeholder="github_pat_…" autocomplete="off">
       <p class="pat-hint">
         Create one at <strong>github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens</strong>.<br>
-        Set repository to <strong>cookidoo-freshness</strong>, permission <strong>Actions → Read and write</strong>. No other permissions needed.
+        Set repository to <strong>cookidoo-freshness</strong>, permission <strong>Actions → Read and write</strong>.<br>
+        Also add <strong>Account permissions → Gists → Read and write</strong> so preferences sync across your devices.
       </p>
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closePatModal()">Cancel</button>
@@ -358,6 +359,7 @@
     const GH_REPO     = 'cookidoo-freshness';
     const GH_WORKFLOW = 'scrape.yml';
     const GH_BRANCH   = 'feature/cloudflare-github-pages';
+    const GIST_FILENAME = 'cookidoo-preferences.json';
 
     // ── Utils ─────────────────────────────────────────────────────────────────
     function escHtml(str) {
@@ -369,6 +371,99 @@
     }
     function localSet(key, value) {
       try { localStorage.setItem('cft_' + key, JSON.stringify(value)); } catch {}
+    }
+
+    // ── Gist preference sync ─────────────────────────────────────────────────
+    let savePrefsTimer = null;
+
+    async function findOrCreateGist(pat) {
+      // Check cache first
+      const cached = localGet('gistId', null);
+      if (cached) return cached;
+
+      // Search existing gists for our filename
+      const listRes = await fetch('https://api.github.com/gists?per_page=100', {
+        headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' }
+      });
+      if (!listRes.ok) throw new Error('Could not list gists (HTTP ' + listRes.status + ')');
+      const gists = await listRes.json();
+      const existing = gists.find(g => g.files && g.files[GIST_FILENAME]);
+      if (existing) {
+        localSet('gistId', existing.id);
+        return existing.id;
+      }
+
+      // Create a new secret gist
+      const createRes = await fetch('https://api.github.com/gists', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + pat,
+          'Accept': 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          description: 'Cookidoo freshness tracker preferences',
+          public: false,
+          files: { [GIST_FILENAME]: { content: JSON.stringify({ bestBefore: {}, shelfLife: [], updatedAt: new Date().toISOString() }) } }
+        })
+      });
+      if (!createRes.ok) throw new Error('Could not create gist (HTTP ' + createRes.status + ')');
+      const gist = await createRes.json();
+      localSet('gistId', gist.id);
+      return gist.id;
+    }
+
+    async function loadPrefsFromGist(pat) {
+      try {
+        const gistId = await findOrCreateGist(pat);
+        const res = await fetch('https://api.github.com/gists/' + gistId, {
+          headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' }
+        });
+        if (!res.ok) return;
+        const gist = await res.json();
+        const file = gist.files && gist.files[GIST_FILENAME];
+        if (!file || !file.content) return;
+        const prefs = JSON.parse(file.content);
+        // Remote wins — merge over local
+        if (prefs.bestBefore && Object.keys(prefs.bestBefore).length) {
+          bestBefore = { ...bestBefore, ...prefs.bestBefore };
+          localSet('bestBefore', bestBefore);
+        }
+        if (prefs.shelfLife && prefs.shelfLife.length) {
+          shelfLife = prefs.shelfLife;
+          localSet('shelfLife', shelfLife);
+        }
+        render();
+      } catch (err) {
+        console.warn('Gist load failed:', err.message);
+      }
+    }
+
+    async function savePrefsToGist(pat) {
+      try {
+        const gistId = await findOrCreateGist(pat);
+        const content = JSON.stringify({ bestBefore, shelfLife: shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE, updatedAt: new Date().toISOString() });
+        await fetch('https://api.github.com/gists/' + gistId, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': 'Bearer ' + pat,
+            'Accept': 'application/vnd.github+json',
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ files: { [GIST_FILENAME]: { content } } })
+        });
+      } catch (err) {
+        console.warn('Gist save failed:', err.message);
+      }
+    }
+
+    function savePrefs() {
+      localSet('bestBefore', bestBefore);
+      localSet('shelfLife', shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE);
+      const pat = localGet('githubPat', null);
+      if (!pat) return;
+      clearTimeout(savePrefsTimer);
+      savePrefsTimer = setTimeout(() => savePrefsToGist(pat), 1500);
     }
 
     // ── Freshness logic ──────────────────────────────────────────────────────
@@ -429,7 +524,7 @@
       const key = recipeId + '-' + cookedAt;
       if (!bestBefore[key]) bestBefore[key] = {};
       bestBefore[key].storage = newStorage;
-      localSet('bestBefore', bestBefore);
+      savePrefs();
       render();
     }
 
@@ -439,7 +534,7 @@
       const key = recipeId + '-' + cookedAt;
       if (!bestBefore[key]) bestBefore[key] = {};
       bestBefore[key].eaten = checked;
-      localSet('bestBefore', bestBefore);
+      savePrefs();
       render();
     }
 
@@ -659,7 +754,7 @@
         fridge: parseInt(document.getElementById('sl_fridge_' + i)?.value || cat.fridge),
         freezer: parseInt(document.getElementById('sl_freezer_' + i)?.value || cat.freezer),
       }));
-      localSet('shelfLife', shelfLife);
+      savePrefs();
       closeSettings();
       render();
       showToast('✓ Settings saved');
@@ -712,7 +807,7 @@
       bestBefore[editingKey].customDays[storage] = days;
       bestBefore[editingKey].expiryDate = expiryDate;
       bestBefore[editingKey].updatedAt = new Date().toISOString();
-      localSet('bestBefore', bestBefore);
+      savePrefs();
       closeExpiryModal();
       render();
       showToast('✓ Expiry saved');
@@ -741,6 +836,10 @@
         updateStatusAfterLoad();
         render();
       }
+
+      // Load cross-device preferences from Gist if PAT is set
+      const pat = localGet('githubPat', null);
+      if (pat) loadPrefsFromGist(pat);
 
       try {
         await loadData();
