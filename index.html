@@ -289,6 +289,11 @@
         <thead><tr><th>Category</th><th>Fridge</th><th>Freezer</th></tr></thead>
         <tbody id="shelfTableBody"></tbody>
       </table>
+
+      <label style="margin-top:8px;">Cross-device Sync</label>
+      <div id="syncStatus" style="font-size:13px;color:var(--ink-60);margin-bottom:10px;"></div>
+      <button class="btn-secondary" id="connectGithubBtn" onclick="openPatModalForSync()" style="margin-bottom:16px;width:100%;"></button>
+
       <div class="modal-footer">
         <button class="btn-secondary" onclick="closeSettings()">Cancel</button>
         <button class="btn-primary" onclick="saveSettings()">Save</button>
@@ -720,18 +725,57 @@
     }
 
     // ── GitHub token modal ────────────────────────────────────────────────────
+    let patModalMode = 'sync'; // 'sync' | 'connect'
+
     function openPatModal() {
+      patModalMode = 'sync';
       document.getElementById('patInput').value = '';
       document.getElementById('patModal').classList.add('open');
       setTimeout(() => document.getElementById('patInput').focus(), 200);
     }
+
+    function openPatModalForSync() {
+      patModalMode = 'connect';
+      document.getElementById('patInput').value = '';
+      document.getElementById('patModal').classList.add('open');
+      setTimeout(() => document.getElementById('patInput').focus(), 200);
+    }
+
     function closePatModal() { document.getElementById('patModal').classList.remove('open'); }
+
     function savePat() {
       const val = document.getElementById('patInput').value.trim();
       if (!val) return;
       localSet('githubPat', val);
       closePatModal();
-      syncNow();
+      if (patModalMode === 'sync') {
+        syncNow();
+      } else {
+        loadPrefsFromGist(val).then(() => showToast('✓ Preferences synced'));
+      }
+    }
+
+    function disconnectGithub() {
+      localSet('githubPat', null);
+      localSet('gistId', null);
+      updateSyncStatus();
+      showToast('Disconnected from GitHub');
+    }
+
+    function updateSyncStatus() {
+      const pat = localGet('githubPat', null);
+      const statusEl = document.getElementById('syncStatus');
+      const btnEl = document.getElementById('connectGithubBtn');
+      if (!statusEl || !btnEl) return;
+      if (pat) {
+        statusEl.textContent = 'Connected — preferences sync automatically across devices.';
+        btnEl.textContent = 'Disconnect GitHub';
+        btnEl.onclick = disconnectGithub;
+      } else {
+        statusEl.textContent = 'Not connected. Add your GitHub token to sync fridge/freezer, eaten status, and category overrides across devices.';
+        btnEl.textContent = 'Connect GitHub';
+        btnEl.onclick = openPatModalForSync;
+      }
     }
 
     // ── Settings modal ────────────────────────────────────────────────────────
@@ -742,6 +786,7 @@
         '<td><input type="number" id="sl_fridge_' + i + '" value="' + cat.fridge + '" min="1" max="365"></td>' +
         '<td><input type="number" id="sl_freezer_' + i + '" value="' + cat.freezer + '" min="1" max="730"></td></tr>'
       ).join('');
+      updateSyncStatus();
       document.getElementById('settingsModal').classList.add('open');
     }
 
