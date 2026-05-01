@@ -380,6 +380,8 @@
 
     // ── Gist preference sync ─────────────────────────────────────────────────
     let savePrefsTimer = null;
+    let gistPollTimer = null;
+    let lastGistUpdatedAt = null;
 
     async function findOrCreateGist(pat) {
       // Check cache first
@@ -429,6 +431,9 @@
         const file = gist.files && gist.files[GIST_FILENAME];
         if (!file || !file.content) return;
         const prefs = JSON.parse(file.content);
+        // Skip if we've already applied this version
+        if (prefs.updatedAt && prefs.updatedAt === lastGistUpdatedAt) return;
+        lastGistUpdatedAt = prefs.updatedAt || null;
         // Remote wins — merge over local
         if (prefs.bestBefore && Object.keys(prefs.bestBefore).length) {
           bestBefore = { ...bestBefore, ...prefs.bestBefore };
@@ -442,6 +447,16 @@
       } catch (err) {
         console.warn('Gist load failed:', err.message);
       }
+    }
+
+    function startGistPolling(pat) {
+      clearInterval(gistPollTimer);
+      gistPollTimer = setInterval(() => loadPrefsFromGist(pat), 30000);
+    }
+
+    function stopGistPolling() {
+      clearInterval(gistPollTimer);
+      gistPollTimer = null;
     }
 
     async function savePrefsToGist(pat) {
@@ -753,11 +768,13 @@
       } else {
         loadPrefsFromGist(val).then(() => showToast('✓ Preferences synced'));
       }
+      startGistPolling(val);
     }
 
     function disconnectGithub() {
       localSet('githubPat', null);
       localSet('gistId', null);
+      stopGistPolling();
       updateSyncStatus();
       showToast('Disconnected from GitHub');
     }
@@ -882,9 +899,9 @@
         render();
       }
 
-      // Load cross-device preferences from Gist if PAT is set
+      // Load cross-device preferences from Gist if PAT is set, then poll for changes
       const pat = localGet('githubPat', null);
-      if (pat) loadPrefsFromGist(pat);
+      if (pat) { loadPrefsFromGist(pat); startGistPolling(pat); }
 
       try {
         await loadData();
