@@ -14,15 +14,9 @@ Tracks your Cookidoo recently cooked list and calculates best-before dates so yo
 
 ### 1. Fork or clone this repo and push to GitHub
 
-Make sure `feature/cloudflare-github-pages` is set as the default branch:
-**Settings → General → Default branch**
-
 ### 2. Enable GitHub Pages
 
 **Settings → Pages → Source → GitHub Actions**
-
-Also allow the branch in environment protection rules if prompted:
-**Settings → Environments → github-pages → Deployment branches → Add rule → `feature/cloudflare-github-pages`**
 
 ### 3. Add your Cookidoo credentials as repository secrets
 
@@ -45,11 +39,13 @@ The **↻ Sync Cookidoo** button in the app can trigger a live scrape directly. 
 
 1. Go to **github.com → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token**
 2. Repository access: **Only select repositories → cookidoo-freshness**
-3. Permission: **Actions → Read and write** (nothing else needed)
+3. Permissions: **Actions → Read and write** and **Account permissions → Gists → Read and write**
 4. Copy the token
 5. Click **↻ Sync Cookidoo** in the app — a one-time prompt will ask you to paste it
 
 The token is saved to your browser's localStorage only. It is never committed or sent anywhere except GitHub's API.
+
+On each additional device, go to **⚙ Settings → Connect GitHub** and paste the same token — preferences (fridge/freezer, eaten, categories) will then sync across all your devices automatically.
 
 ## Syncing
 
@@ -65,10 +61,3 @@ COOKIDOO_EMAIL=you@example.com COOKIDOO_PASSWORD=yourpassword node scripts/scrap
 # Then open index.html in a browser — it reads ./data/cook-history.json
 ```
 
-## Branches
-
-| Branch | Description |
-|---|---|
-| `feature/cloudflare-github-pages` | Current — GitHub Pages + GitHub Actions |
-| `main` | Old — Netlify + cookie auth |
-| `feature/option-b-python-auth` | Old — Netlify + OAuth |
