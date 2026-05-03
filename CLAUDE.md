@@ -5,8 +5,7 @@ A web app that scrapes the user's Cookidoo "Recently Cooked" list and tracks foo
 
 ## Owner
 - GitHub: https://github.com/haansplosion/cookidoo-freshness
-- This branch: `feature/cloudflare-github-pages`
-- Other branches: `main` (old Netlify cookie auth), `feature/option-b-python-auth` (Netlify OAuth)
+- Active branch: `main`
 
 ## Tech stack
 - Frontend: Vanilla HTML/CSS/JS (`index.html`) — no framework, served via GitHub Pages
@@ -82,7 +81,7 @@ COOKIDOO_EMAIL=you@example.com COOKIDOO_PASSWORD=yourpassword node scripts/scrap
 ### First-time GitHub setup
 1. Push this branch to GitHub
 2. Go to repo Settings → Pages → Source: GitHub Actions
-3. Allow `feature/cloudflare-github-pages` in environment protection rules
+3. Allow `main` in environment protection rules
 4. Add `COOKIDOO_EMAIL` and `COOKIDOO_PASSWORD` to repo Settings → Secrets → Actions
 5. Run the "Scrape Cookidoo" workflow manually to populate `data/cook-history.json`
 
@@ -93,7 +92,7 @@ Push to this branch — GitHub Actions (`deploy.yml`) deploys `index.html` autom
 ```bash
 export GH_TOKEN=your_token_here
 git remote set-url origin https://$GH_TOKEN@github.com/haansplosion/cookidoo-freshness.git
-git checkout feature/cloudflare-github-pages
+git checkout main
 git add .
 git commit -m "your message"
 git push
