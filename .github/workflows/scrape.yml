@@ -39,4 +39,5 @@ jobs:
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           git add data/cook-history.json
           git diff --staged --quiet || git commit -m 'chore: update cook history'
+          git pull --rebase origin main
           git push

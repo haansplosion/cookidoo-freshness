@@ -788,17 +788,15 @@
       return data;
     }
 
-    // ── Poll workflow run via API, then wait for Pages to reflect the new JSON ──
-    async function pollAndReload(dispatchedAt) {
-      const prevSynced = lastSynced;
+    // ── Poll workflow run via API; on success fetch raw content (skips Pages CDN) ─
+    async function pollAndReload() {
       const pat = localGet('githubPat', null);
-      const deadline = Date.now() + 600000; // 10 min total
+      const deadline = Date.now() + 300000; // 5 min max
 
-      // Step 1: find the run that was just queued.
-      // Use ±5 min tolerance around dispatchedAt to handle client/server clock skew.
+      // Find the most recent run created in the last 2 min — checked at poll time,
+      // not dispatch time, so client/server clock skew is irrelevant.
       let runId = null;
-      const findRunDeadline = Date.now() + 30000;
-      while (Date.now() < findRunDeadline) {
+      while (Date.now() < deadline && !runId) {
         await new Promise(r => setTimeout(r, 5000));
         try {
           const res = await fetch(
@@ -808,56 +806,53 @@
           );
           if (res.ok) {
             const d = await res.json();
-            const run = (d.workflow_runs || []).find(r =>
-              Math.abs(new Date(r.created_at).getTime() - dispatchedAt.getTime()) < 300000
+            const run = (d.workflow_runs || []).find(
+              r => Date.now() - new Date(r.created_at).getTime() < 120000
             );
-            if (run) { runId = run.id; break; }
+            if (run) runId = run.id;
           }
         } catch {}
       }
 
-      // Step 2: poll the run until it completes
-      if (runId) {
-        while (Date.now() < deadline) {
-          await new Promise(r => setTimeout(r, 8000));
-          try {
-            const res = await fetch(
-              'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/actions/runs/' + runId,
-              { headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' } }
-            );
-            if (res.ok) {
-              const run = await res.json();
-              if (run.status === 'completed') {
-                if (run.conclusion !== 'success') throw new Error('Scrape failed (' + run.conclusion + ')');
-                break;
-              }
-              setStatus(run.status === 'in_progress' ? 'Scraping Cookidoo…' : 'Queued — waiting to start…', 'warn');
-            }
-          } catch (e) { if (e.message.startsWith('Scrape failed')) throw e; }
-        }
+      if (!runId) {
+        setStatus('Sync triggered — refresh in a minute if data hasn\'t updated', 'warn');
+        return;
       }
 
-      // Step 3: poll Pages JSON until the new lastSynced appears.
-      // Use the full remaining deadline — if runId was not found we don't know how
-      // far into the scrape we already are, so we need the whole window.
-      setStatus('Syncing… deploying to Pages', 'warn');
+      // Poll the run until it finishes
       while (Date.now() < deadline) {
-        await new Promise(r => setTimeout(r, 10000));
+        await new Promise(r => setTimeout(r, 5000));
         try {
-          const res = await fetch('./data/cook-history.json?v=' + Date.now());
-          if (res.ok) {
-            const data = await res.json();
-            if (data.lastSynced && data.lastSynced !== prevSynced) {
-              allRecipes = data.recipes || [];
-              lastSynced = data.lastSynced;
-              localSet('cookHistory', data);
-              updateStatusAfterLoad();
-              render();
-              showToast('✓ Synced ' + allRecipes.length + ' dishes');
-              return;
-            }
+          const res = await fetch(
+            'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/actions/runs/' + runId,
+            { headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' } }
+          );
+          if (!res.ok) continue;
+          const run = await res.json();
+          if (run.status !== 'completed') {
+            setStatus(run.status === 'in_progress' ? 'Scraping Cookidoo…' : 'Queued — waiting to start…', 'warn');
+            continue;
           }
-        } catch {}
+          if (run.conclusion !== 'success') throw new Error('Scrape failed (' + run.conclusion + ')');
+
+          // Run succeeded — fetch data directly from git (no Pages CDN delay)
+          setStatus('Loading fresh data…', 'warn');
+          const raw = await fetch(
+            'https://raw.githubusercontent.com/' + GH_OWNER + '/' + GH_REPO + '/' + GH_BRANCH +
+            '/data/cook-history.json?v=' + Date.now()
+          );
+          if (!raw.ok) throw new Error('Could not fetch updated data');
+          const data = await raw.json();
+          allRecipes = data.recipes || [];
+          lastSynced = data.lastSynced;
+          localSet('cookHistory', data);
+          updateStatusAfterLoad();
+          render();
+          showToast('✓ Synced ' + allRecipes.length + ' dishes');
+          return;
+        } catch (e) {
+          if (e.message.startsWith('Scrape failed') || e.message.startsWith('Could not')) throw e;
+        }
       }
       setStatus('Sync triggered — refresh in a minute if data hasn\'t updated', 'warn');
     }
@@ -873,7 +868,6 @@
       setStatus('Triggering scrape…', 'warn');
 
       try {
-        const dispatchedAt = new Date();
         const res = await fetch(
           'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO +
           '/actions/workflows/' + GH_WORKFLOW + '/dispatches',
@@ -894,7 +888,7 @@
         }
         if (!res.ok) throw new Error('Could not trigger sync (HTTP ' + res.status + ')');
         setStatus('Scraping Cookidoo…', 'warn');
-        await pollAndReload(dispatchedAt);
+        await pollAndReload();
       } catch (err) {
         setStatus('Sync failed', 'err');
         showToast('✕ ' + err.message);
