@@ -540,6 +540,10 @@
           shelfLife = mergeShelfLife(prefs.shelfLife);
           localSet('shelfLife', shelfLife);
         }
+        if (Array.isArray(prefs.customRecipes)) {
+          customRecipes = prefs.customRecipes;
+          localSet('customRecipes', customRecipes);
+        }
         render();
       } catch (err) {
         console.warn('Gist load failed:', err.message);
@@ -559,7 +563,7 @@
     async function savePrefsToGist(pat) {
       try {
         const gistId = await findOrCreateGist(pat);
-        const content = JSON.stringify({ bestBefore, shelfLife: shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE, updatedAt: new Date().toISOString() });
+        const content = JSON.stringify({ bestBefore, shelfLife: shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE, customRecipes, updatedAt: new Date().toISOString() });
         await fetch('https://api.github.com/gists/' + gistId, {
           method: 'PATCH',
           headers: {
@@ -1099,6 +1103,7 @@
       };
       customRecipes.unshift(recipe);
       localSet('customRecipes', customRecipes);
+      savePrefs();
       render();
       showToast('✓ Added “' + name + '”');
     }

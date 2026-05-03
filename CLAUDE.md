@@ -59,7 +59,7 @@ The Vorwerk CIAM endpoint is behind Cloudflare Bot Management. Requests from Clo
 ## How the frontend works
 - `index.html` fetches `./data/cook-history.json` directly (same GitHub Pages domain, no CORS)
 - The "↻ Sync Cookidoo" button re-fetches the JSON with a cache-bust query param
-- All user preferences (fridge/freezer choice, eaten status, custom expiry) stored in `localStorage`
+- All user preferences (fridge/freezer choice, eaten status, custom expiry, custom recipes) stored in `localStorage` and synced cross-device via GitHub Gist when a PAT is connected
 - Settings modal only shows shelf life defaults (no credentials — those are in GitHub secrets)
 - No sign-in modal, no backend API calls
 
@@ -125,7 +125,7 @@ git push
 ### Header
 - "Still Good?" logo
 - "↻ Sync Cookidoo" button (re-fetches cook-history.json)
-- **+** button — opens "Add a non-Cookidoo dish" modal (stores in localStorage as `customRecipes`)
+- **+** button — opens "Add a non-Cookidoo dish" modal (stored in `localStorage` as `customRecipes`, synced via Gist)
 - ⚙ settings button
 
 ### Status bar
