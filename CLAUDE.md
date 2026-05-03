@@ -57,16 +57,17 @@ The Vorwerk CIAM endpoint is behind Cloudflare Bot Management. Requests from Clo
 - Output written to `data/cook-history.json` and committed back to the repo
 
 ## How the frontend works
-- `index.html` fetches `./data/cook-history.json` directly (same GitHub Pages domain, no CORS)
-- The "↻ Sync Cookidoo" button re-fetches the JSON with a cache-bust query param
+- `index.html` fetches `./data/cook-history.json` directly (same GitHub Pages domain, no CORS) on load
+- The "↻ Sync Cookidoo" button dispatches the `scrape.yml` workflow via GitHub API, polls the run status every 5s, then fetches the updated data directly from `raw.githubusercontent.com` once the run succeeds (bypasses Pages CDN, so UI reflects the scrape immediately)
 - All user preferences (fridge/freezer choice, eaten status, custom expiry, custom recipes) stored in `localStorage` and synced cross-device via GitHub Gist when a PAT is connected
 - Settings modal only shows shelf life defaults (no credentials — those are in GitHub secrets)
 - No sign-in modal, no backend API calls
 
 ## Triggering a scrape
 - **Automatic**: every 6 hours via cron in `scrape.yml`
-- **Manual**: GitHub repo → Actions tab → "Scrape Cookidoo" → "Run workflow"
-- The `[skip ci]` commit message on the data update prevents deploy.yml from re-triggering
+- **Manual**: via the "↻ Sync Cookidoo" button in the app (requires GitHub PAT), or GitHub repo → Actions tab → "Scrape Cookidoo" → "Run workflow"
+- The scrape commit triggers `deploy.yml` to redeploy Pages with the updated JSON
+- `git pull --rebase` before push in `scrape.yml` prevents push rejection when code commits have landed since the workflow checked out
 
 ## Local dev
 ```bash
