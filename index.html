@@ -41,6 +41,9 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .settings-btn { background: none; border: 1px solid rgba(247,243,236,0.2); color: var(--cream); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
     .settings-btn:hover { background: rgba(247,243,236,0.1); }
+    .add-btn { background: none; border: 1px solid rgba(247,243,236,0.2); color: var(--cream); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 22px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .add-btn:hover { background: rgba(247,243,236,0.1); }
+    .card-image-custom { width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; font-size: 72px; flex-shrink: 0; }
 
     /* STATUS BAR */
     .status-bar { background: var(--warm-white); border-bottom: 1px solid var(--border); padding: 10px 32px; display: flex; align-items: flex-end; justify-content: space-between; font-size: 13px; color: var(--ink-60); }
@@ -249,6 +252,7 @@
       <button class="sync-btn" id="syncBtn" onclick="syncNow()">
         <span class="sync-icon">↻</span> Sync Cookidoo
       </button>
+      <button class="add-btn" onclick="openAddModal()" title="Add a dish">+</button>
       <button class="settings-btn" onclick="openSettings()" title="Settings">⚙</button>
     </div>
   </header>
@@ -339,15 +343,45 @@
     </div>
   </div>
 
+  <!-- ADD CUSTOM DISH MODAL -->
+  <div class="modal-overlay" id="addDishModal">
+    <div class="modal" style="max-width:400px;">
+      <h2>Add a non-Cookidoo dish</h2>
+      <p class="sub">What did you cook? We'll work out the category and estimate how long it'll keep.</p>
+      <label>Dish name</label>
+      <input type="text" id="addDishName" placeholder="e.g. Chicken Parmigiana" autocomplete="off">
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAddModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitAddDish()">Add Dish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD CATEGORY PICKER MODAL (shown when no keyword match) -->
+  <div class="modal-overlay" id="addCategoryModal">
+    <div class="modal" style="max-width:380px;">
+      <h2>Recipe not found</h2>
+      <p class="sub" id="addCategoryModalSub"></p>
+      <label>What type of dish is this?</label>
+      <select id="addCategorySelect"></select>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAddCategoryModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmAddDish()">Add Dish</button>
+      </div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script>
     let allRecipes = [];
+    let customRecipes = [];
     let bestBefore = {};
     let shelfLife = [];
     let lastSynced = null;
     let currentFilter = 'all';
     let editingKey = null;
+    let pendingCustomName = '';
 
     const DEFAULT_SHELF_LIFE = [
       { name: 'Meat / Poultry',   keywords: ['chicken','beef','pork','lamb','mince','steak','ribs','tinga','stroganoff','gyros'], fridge: 3, freezer: 90 },
@@ -358,6 +392,16 @@
       { name: 'Vegetables',       keywords: ['veg','salad','wrap','onion','garlic'], fridge: 5, freezer: 90 },
       { name: 'Other',            keywords: [], fridge: 3, freezer: 60 },
     ];
+
+    const CATEGORY_VISUALS = {
+      'Meat / Poultry': { emoji: '🍗', bg: '#F5E0C0' },
+      'Fish / Seafood': { emoji: '🐟', bg: '#C0D8F5' },
+      'Rice / Pasta':   { emoji: '🍝', bg: '#F5EAC0' },
+      'Soup / Stock':   { emoji: '🥣', bg: '#F5CFA0' },
+      'Dairy / Eggs':   { emoji: '🥚', bg: '#F5F0C0' },
+      'Vegetables':     { emoji: '🥦', bg: '#C0F0D0' },
+      'Other':          { emoji: '🍽️', bg: '#E8E4DC' },
+    };
 
     // ── GitHub config ─────────────────────────────────────────────────────────
     const GH_OWNER    = 'haansplosion';
@@ -489,7 +533,18 @@
     // ── Freshness logic ──────────────────────────────────────────────────────
     function bbKey(recipe) { return recipe.recipeId + '-' + recipe.cookedAt; }
 
+    function detectCategoryFromName(name) {
+      const lower = name.toLowerCase();
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      for (const cat of sl) {
+        if (cat.name === 'Other') continue;
+        if (cat.keywords && cat.keywords.some(k => lower.includes(k))) return cat.name;
+      }
+      return null;
+    }
+
     function getCategory(recipe) {
+      if (recipe.custom && recipe.category) return recipe.category;
       const bb = bestBefore[bbKey(recipe)];
       if (bb && bb.category) return bb.category;
       const name = (recipe.name || '').toLowerCase();
@@ -563,21 +618,23 @@
       const container = document.getElementById('mainContent');
       const summaryEl = document.getElementById('summary');
 
+      const combined = [...allRecipes, ...customRecipes];
+
       const filtered = currentFilter === 'all'
-        ? allRecipes
-        : allRecipes.filter(r => getStatus(r).status === currentFilter);
+        ? combined
+        : combined.filter(r => getStatus(r).status === currentFilter);
 
       let safe = 0, caution = 0, expired = 0;
-      for (const r of allRecipes) {
+      for (const r of combined) {
         const s = getStatus(r).status;
         if (s === 'safe') safe++;
         else if (s === 'caution') caution++;
         else if (s === 'expired') expired++;
       }
 
-      if (allRecipes.length > 0) {
+      if (combined.length > 0) {
         summaryEl.style.display = 'grid';
-        document.getElementById('countTotal').textContent = allRecipes.length;
+        document.getElementById('countTotal').textContent = combined.length;
         document.getElementById('countSafe').textContent = safe;
         document.getElementById('countCaution').textContent = caution;
         document.getElementById('countExpired').textContent = expired;
@@ -587,9 +644,9 @@
 
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="emoji">' +
-          (allRecipes.length === 0 ? '🍽️' : '✓') + '</div><h2>' +
-          (allRecipes.length === 0 ? 'No cooking history yet' : 'Nothing here') + '</h2><p>' +
-          (allRecipes.length === 0 ? 'Syncing your Cookidoo account…' : 'Try a different filter.') + '</p></div>';
+          (combined.length === 0 ? '🍽️' : '✓') + '</div><h2>' +
+          (combined.length === 0 ? 'No cooking history yet' : 'Nothing here') + '</h2><p>' +
+          (combined.length === 0 ? 'Syncing your Cookidoo account…' : 'Try a different filter.') + '</p></div>';
         return;
       }
 
@@ -601,9 +658,12 @@
         const cookedDate = new Date(recipe.cookedAt);
         const cookedStr = cookedDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
 
-        const imgHtml = recipe.imgSrc
-          ? '<img class="card-image" src="' + recipe.imgSrc + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=card-image-placeholder>🍳</div>\'">'
-          : '<div class="card-image-placeholder">🍳</div>';
+        const visuals = CATEGORY_VISUALS[getCategory(recipe)] || CATEGORY_VISUALS['Other'];
+        const imgHtml = recipe.custom
+          ? '<div class="card-image-custom" style="background:' + visuals.bg + '">' + visuals.emoji + '</div>'
+          : (recipe.imgSrc
+            ? '<img class="card-image" src="' + recipe.imgSrc + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=card-image-placeholder>🍳</div>\'">'
+            : '<div class="card-image-placeholder">🍳</div>');
 
         const badgeClass = status === 'eaten' ? 'eaten' : status;
         const badgeIcon = { safe: '✓', caution: '⚠', expired: '✕', eaten: '✓' }[status] || '?';
@@ -869,7 +929,7 @@
     function openExpiryModal(recipeId, cookedAt, encodedName) {
       editingKey = recipeId + '-' + cookedAt;
       const name = decodeURIComponent(encodedName);
-      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || { recipeId, cookedAt, name };
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || customRecipes.find(r => bbKey(r) === editingKey) || { recipeId, cookedAt, name };
       const storage = getStorage(recipe);
       const bb = bestBefore[editingKey];
       const currentCategory = getCategory(recipe);
@@ -918,6 +978,65 @@
       showToast('✓ Expiry saved');
     }
 
+    // ── Add custom dish ───────────────────────────────────────────────────────
+    function openAddModal() {
+      document.getElementById('addDishName').value = '';
+      document.getElementById('addDishModal').classList.add('open');
+      setTimeout(() => document.getElementById('addDishName').focus(), 200);
+    }
+
+    function closeAddModal() { document.getElementById('addDishModal').classList.remove('open'); }
+
+    function submitAddDish() {
+      const name = document.getElementById('addDishName').value.trim();
+      if (!name) return;
+      const category = detectCategoryFromName(name);
+      if (category) {
+        addCustomRecipe(name, category);
+        closeAddModal();
+      } else {
+        pendingCustomName = name;
+        closeAddModal();
+        openAddCategoryModal(name);
+      }
+    }
+
+    function openAddCategoryModal(name) {
+      document.getElementById('addCategoryModalSub').textContent =
+        '“' + name + '” — we couldn’t identify the category. Select the type of dish so we can estimate freshness.';
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      document.getElementById('addCategorySelect').innerHTML = sl.map(c =>
+        '<option value="' + escHtml(c.name) + '">' + escHtml(c.name) + '</option>'
+      ).join('');
+      document.getElementById('addCategoryModal').classList.add('open');
+    }
+
+    function closeAddCategoryModal() {
+      document.getElementById('addCategoryModal').classList.remove('open');
+      pendingCustomName = '';
+    }
+
+    function confirmAddDish() {
+      const category = document.getElementById('addCategorySelect').value;
+      addCustomRecipe(pendingCustomName, category);
+      closeAddCategoryModal();
+    }
+
+    function addCustomRecipe(name, category) {
+      const recipe = {
+        recipeId: 'custom-' + Date.now(),
+        cookedAt: new Date().toISOString(),
+        name,
+        custom: true,
+        category,
+        imgSrc: null,
+      };
+      customRecipes.unshift(recipe);
+      localSet('customRecipes', customRecipes);
+      render();
+      showToast('✓ Added “' + name + '”');
+    }
+
     // ── Toast ─────────────────────────────────────────────────────────────────
     let toastTimer;
     function showToast(msg) {
@@ -932,6 +1051,7 @@
     async function init() {
       shelfLife = localGet('shelfLife', DEFAULT_SHELF_LIFE);
       bestBefore = localGet('bestBefore', {});
+      customRecipes = localGet('customRecipes', []);
 
       // Show cached data immediately while fresh fetch loads
       const cached = localGet('cookHistory', null);
@@ -956,7 +1076,15 @@
     document.getElementById('settingsModal').addEventListener('click', e => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
     document.getElementById('expiryModal').addEventListener('click', e => { if (e.target === document.getElementById('expiryModal')) closeExpiryModal(); });
     document.getElementById('patModal').addEventListener('click', e => { if (e.target === document.getElementById('patModal')) closePatModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('patModal').classList.contains('open')) savePat(); });
+    document.getElementById('addDishModal').addEventListener('click', e => { if (e.target === document.getElementById('addDishModal')) closeAddModal(); });
+    document.getElementById('addCategoryModal').addEventListener('click', e => { if (e.target === document.getElementById('addCategoryModal')) closeAddCategoryModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        if (document.getElementById('patModal').classList.contains('open')) savePat();
+        if (document.getElementById('addDishModal').classList.contains('open')) submitAddDish();
+        if (document.getElementById('addCategoryModal').classList.contains('open')) confirmAddDish();
+      }
+    });
 
     init();
   </script>
