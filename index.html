@@ -537,7 +537,7 @@
           localSet('bestBefore', bestBefore);
         }
         if (prefs.shelfLife && prefs.shelfLife.length) {
-          shelfLife = prefs.shelfLife;
+          shelfLife = mergeShelfLife(prefs.shelfLife);
           localSet('shelfLife', shelfLife);
         }
         render();
@@ -1112,9 +1112,18 @@
       toastTimer = setTimeout(() => t.classList.remove('show'), 3000);
     }
 
+    // Merge stored shelf life onto DEFAULT_SHELF_LIFE so new/renamed categories
+    // always appear while preserving any user-customised fridge/freezer values.
+    function mergeShelfLife(stored) {
+      return DEFAULT_SHELF_LIFE.map(def => {
+        const saved = (stored || []).find(s => s.name === def.name);
+        return saved ? { ...def, fridge: saved.fridge, freezer: saved.freezer } : def;
+      });
+    }
+
     // ── Init ──────────────────────────────────────────────────────────────────
     async function init() {
-      shelfLife = localGet('shelfLife', DEFAULT_SHELF_LIFE);
+      shelfLife = mergeShelfLife(localGet('shelfLife', null));
       bestBefore = localGet('bestBefore', {});
       customRecipes = localGet('customRecipes', []);
 
