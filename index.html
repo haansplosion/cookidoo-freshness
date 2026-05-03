@@ -219,6 +219,8 @@
     .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
     .btn-secondary { background: none; border: 1px solid var(--border); color: var(--ink); padding: 10px 22px; border-radius: 100px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s; }
     .btn-secondary:hover { background: var(--cream); }
+    .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 10px 22px; border-radius: 100px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .btn-danger:hover { background: var(--danger-light); }
 
     .shelf-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 18px; }
     .shelf-table th { text-align: left; font-size: 12px; font-weight: 500; color: var(--ink-60); text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
@@ -337,6 +339,7 @@
       <input type="date" id="expiryDate">
       <p style="font-size:12px;color:var(--ink-60);margin-top:-10px;margin-bottom:18px;">Leave date blank to use days count above.</p>
       <div class="modal-footer">
+        <button class="btn-danger" id="expiryRemoveBtn" onclick="removeCustomRecipe()" style="display:none;margin-right:auto;">Remove dish</button>
         <button class="btn-secondary" onclick="closeExpiryModal()">Cancel</button>
         <button class="btn-primary" onclick="saveExpiry()">Save</button>
       </div>
@@ -994,13 +997,14 @@
 
       document.getElementById('expiryDays').value = (bb && bb.customDays && bb.customDays[storage]) ? bb.customDays[storage] : getShelfDays(recipe, storage);
       document.getElementById('expiryDate').value = (bb && bb.expiryDate) ? bb.expiryDate : '';
+      document.getElementById('expiryRemoveBtn').style.display = recipe.custom ? '' : 'none';
       document.getElementById('expiryModal').classList.add('open');
     }
 
     function onCategoryChange() {
       const catName = document.getElementById('expiryCategory').value;
-      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
-      const storage = getStorage(recipe);
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || customRecipes.find(r => bbKey(r) === editingKey);
+      const storage = recipe ? getStorage(recipe) : 'fridge';
       const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
       const cat = sl.find(c => c.name === catName) || sl[sl.length - 1];
       document.getElementById('expiryDays').value = cat[storage];
@@ -1009,10 +1013,21 @@
 
     function closeExpiryModal() { document.getElementById('expiryModal').classList.remove('open'); editingKey = null; }
 
+    function removeCustomRecipe() {
+      if (!editingKey) return;
+      customRecipes = customRecipes.filter(r => bbKey(r) !== editingKey);
+      localSet('customRecipes', customRecipes);
+      delete bestBefore[editingKey];
+      savePrefs();
+      closeExpiryModal();
+      render();
+      showToast('Dish removed');
+    }
+
     function saveExpiry() {
       if (!editingKey) return;
-      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
-      const storage = getStorage(recipe);
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || customRecipes.find(r => bbKey(r) === editingKey);
+      const storage = recipe ? getStorage(recipe) : 'fridge';
       const category = document.getElementById('expiryCategory').value;
       const days = parseInt(document.getElementById('expiryDays').value) || 3;
       const expiryDate = document.getElementById('expiryDate').value || null;
