@@ -671,7 +671,8 @@
       const container = document.getElementById('mainContent');
       const summaryEl = document.getElementById('summary');
 
-      const combined = [...allRecipes, ...customRecipes];
+      const combined = [...allRecipes, ...customRecipes]
+        .sort((a, b) => new Date(b.cookedAt) - new Date(a.cookedAt));
 
       const filtered = currentFilter === 'all'
         ? combined
