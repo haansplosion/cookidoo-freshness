@@ -118,11 +118,14 @@ git push
 
 ### Modals
 1. **Settings modal** — adjust shelf life defaults per category (no credentials)
-2. **Expiry editor** — override days count or set specific use-by date (opened by clicking a card)
+2. **Expiry editor** — override days count or set specific use-by date (opened by clicking a card); custom recipes show a "Remove dish" button
+3. **Add a non-Cookidoo dish** — opened by the + button; keyword-matches the dish name to a category automatically
+4. **Recipe not found** — shown when no keyword match; lets user pick category manually
 
 ### Header
 - "Still Good?" logo
 - "↻ Sync Cookidoo" button (re-fetches cook-history.json)
+- **+** button — opens "Add a non-Cookidoo dish" modal (stores in localStorage as `customRecipes`)
 - ⚙ settings button
 
 ### Status bar
@@ -130,17 +133,19 @@ git push
 - Right: filter tabs (All / ✓ Fresh / ⚠ Use Soon / ✕ Expired)
 
 ## Food category shelf life defaults
-| Category | Fridge (days) | Freezer (days) |
-|---|---|---|
-| Meat / Poultry | 3 | 90 |
-| Fish / Seafood | 2 | 60 |
-| Rice / Pasta | 4 | 60 |
-| Soup / Stock | 4 | 90 |
-| Dairy / Eggs | 3 | 30 |
-| Vegetables | 5 | 90 |
-| Other | 3 | 60 |
+| Category | Fridge (days) | Freezer (days) | Card emoji |
+|---|---|---|---|
+| Meat | 3 | 90 | 🥩 |
+| Poultry | 3 | 90 | 🍗 |
+| Fish / Seafood | 2 | 60 | 🐟 |
+| Rice / Pasta | 4 | 60 | 🍝 |
+| Soup / Stock | 4 | 90 | 🍲 |
+| Breakfast / Grains | 4 | 60 | 🥣 |
+| Dairy / Eggs | 3 | 30 | 🥚 |
+| Vegetables | 5 | 90 | 🥦 |
+| Other | 3 | 60 | 🍽️ |
 
-Category is detected by keyword matching against recipe name (lowercase).
+Category is detected by keyword matching against recipe name (lowercase). Custom (manually added) recipes display a large emoji on a coloured background instead of a photo card. `bestBefore[key].category` overrides the detected category and takes priority over the stored category on a custom recipe.
 
 ## Current status
 - GitHub Actions scrape workflow: **untested in production** — run manually after first push

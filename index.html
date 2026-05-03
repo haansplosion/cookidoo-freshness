@@ -41,6 +41,9 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .settings-btn { background: none; border: 1px solid rgba(247,243,236,0.2); color: var(--cream); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
     .settings-btn:hover { background: rgba(247,243,236,0.1); }
+    .add-btn { background: none; border: 1px solid rgba(247,243,236,0.2); color: var(--cream); width: 36px; height: 36px; border-radius: 50%; cursor: pointer; font-size: 22px; line-height: 1; display: flex; align-items: center; justify-content: center; transition: background 0.2s; }
+    .add-btn:hover { background: rgba(247,243,236,0.1); }
+    .card-image-custom { width: 100%; height: 160px; display: flex; align-items: center; justify-content: center; font-size: 72px; flex-shrink: 0; }
 
     /* STATUS BAR */
     .status-bar { background: var(--warm-white); border-bottom: 1px solid var(--border); padding: 10px 32px; display: flex; align-items: flex-end; justify-content: space-between; font-size: 13px; color: var(--ink-60); }
@@ -216,6 +219,8 @@
     .modal-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 8px; }
     .btn-secondary { background: none; border: 1px solid var(--border); color: var(--ink); padding: 10px 22px; border-radius: 100px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s; }
     .btn-secondary:hover { background: var(--cream); }
+    .btn-danger { background: none; border: 1px solid var(--danger); color: var(--danger); padding: 10px 22px; border-radius: 100px; font-family: 'DM Sans', sans-serif; font-size: 14px; cursor: pointer; transition: background 0.15s; }
+    .btn-danger:hover { background: var(--danger-light); }
 
     .shelf-table { width: 100%; border-collapse: collapse; font-size: 14px; margin-bottom: 18px; }
     .shelf-table th { text-align: left; font-size: 12px; font-weight: 500; color: var(--ink-60); text-transform: uppercase; letter-spacing: 0.06em; padding: 8px 10px; border-bottom: 1px solid var(--border); }
@@ -249,6 +254,7 @@
       <button class="sync-btn" id="syncBtn" onclick="syncNow()">
         <span class="sync-icon">↻</span> Sync Cookidoo
       </button>
+      <button class="add-btn" onclick="openAddModal()" title="Add a dish">+</button>
       <button class="settings-btn" onclick="openSettings()" title="Settings">⚙</button>
     </div>
   </header>
@@ -333,8 +339,37 @@
       <input type="date" id="expiryDate">
       <p style="font-size:12px;color:var(--ink-60);margin-top:-10px;margin-bottom:18px;">Leave date blank to use days count above.</p>
       <div class="modal-footer">
+        <button class="btn-danger" id="expiryRemoveBtn" onclick="removeCustomRecipe()" style="display:none;margin-right:auto;">Remove dish</button>
         <button class="btn-secondary" onclick="closeExpiryModal()">Cancel</button>
         <button class="btn-primary" onclick="saveExpiry()">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD CUSTOM DISH MODAL -->
+  <div class="modal-overlay" id="addDishModal">
+    <div class="modal" style="max-width:400px;">
+      <h2>Add a non-Cookidoo dish</h2>
+      <p class="sub">What did you cook? We'll work out the category and estimate how long it'll keep.</p>
+      <label>Dish name</label>
+      <input type="text" id="addDishName" placeholder="e.g. Chicken Parmigiana" autocomplete="off">
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAddModal()">Cancel</button>
+        <button class="btn-primary" onclick="submitAddDish()">Add Dish</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ADD CATEGORY PICKER MODAL (shown when no keyword match) -->
+  <div class="modal-overlay" id="addCategoryModal">
+    <div class="modal" style="max-width:380px;">
+      <h2>Recipe not found</h2>
+      <p class="sub" id="addCategoryModalSub"></p>
+      <label>What type of dish is this?</label>
+      <select id="addCategorySelect"></select>
+      <div class="modal-footer">
+        <button class="btn-secondary" onclick="closeAddCategoryModal()">Cancel</button>
+        <button class="btn-primary" onclick="confirmAddDish()">Add Dish</button>
       </div>
     </div>
   </div>
@@ -343,21 +378,83 @@
 
   <script>
     let allRecipes = [];
+    let customRecipes = [];
     let bestBefore = {};
     let shelfLife = [];
     let lastSynced = null;
     let currentFilter = 'all';
     let editingKey = null;
+    let pendingCustomName = '';
 
     const DEFAULT_SHELF_LIFE = [
-      { name: 'Meat / Poultry',   keywords: ['chicken','beef','pork','lamb','mince','steak','ribs','tinga','stroganoff','gyros'], fridge: 3, freezer: 90 },
-      { name: 'Fish / Seafood',   keywords: ['fish','salmon','tuna','prawn','seafood','shrimp'], fridge: 2, freezer: 60 },
-      { name: 'Rice / Pasta',     keywords: ['rice','pasta','risotto','arroz','noodle','pad thai'], fridge: 4, freezer: 60 },
-      { name: 'Soup / Stock',     keywords: ['soup','broth','stock','miso'], fridge: 4, freezer: 90 },
-      { name: 'Dairy / Eggs',     keywords: ['egg','cheese','cream','yoghurt','yogurt','mash','potato'], fridge: 3, freezer: 30 },
-      { name: 'Vegetables',       keywords: ['veg','salad','wrap','onion','garlic'], fridge: 5, freezer: 90 },
+      { name: 'Meat',   keywords: [
+          'beef','pork','lamb','mince','steak','rib','stroganoff',
+          'burger','hamburger','sausage','bacon','veal','meatball','bolognese','bolognaise',
+          'ragu','ragù','kebab','chorizo','ham','brisket','patty',
+          'chop','cutlet','pepperoni','salami','prosciutto','pulled pork','carnitas','meatloaf',
+          'corned beef','osso buco','rendang','saltimbocca','piccata','marsala',
+          'shepherd','cottage pie','moussaka','short rib','hot dog',
+          'mortadella','pastrami','cassoulet','rillettes','vitello',
+        ], fridge: 3, freezer: 90 },
+      { name: 'Poultry', keywords: [
+          'chicken','turkey','duck','wing','drumstick','tinga','pollo','gyros',
+          'katsu','schnitzel','confit','poussin','roast chicken','quail','hen','pheasant',
+          'yakitori','cacciatore','coq au vin',
+        ], fridge: 3, freezer: 90 },
+      { name: 'Fish / Seafood',   keywords: [
+          'fish','salmon','tuna','prawn','seafood','shrimp',
+          'cod','snapper','barramundi','trout','sardine','anchovy','crab','lobster',
+          'mussel','oyster','scallop','squid','octopus','calamari','sashimi','sushi',
+          'halibut','mackerel','herring','whiting','flathead','dory','kingfish','bream',
+          'tilapia','mahi','clam','abalone','perch','bass','smoked salmon','gravlax',
+        ], fridge: 2, freezer: 60 },
+      { name: 'Rice / Pasta',     keywords: [
+          'rice','pasta','risotto','arroz','noodle','pad thai',
+          'spaghetti','carbonara','penne','fettuccine','linguine','gnocchi','ravioli',
+          'lasagne','lasagna','tagliatelle','pappardelle','orzo','macaroni','vermicelli',
+          'udon','ramen','soba','fried rice','paella','biryani','couscous','pilaf',
+          'arancini','fusilli','rigatoni','bucatini','orecchiette','ziti','tortellini',
+          'cannelloni','lo mein','chow mein','laksa','jambalaya','congee','pho',
+          'amatriciana','cacio e pepe','aglio e olio','primavera','puttanesca',
+        ], fridge: 4, freezer: 60 },
+      { name: 'Soup / Stock',     keywords: [
+          'soup','broth','stock','miso',
+          'chowder','bisque','minestrone','gazpacho','consommé','stew','velouté',
+          'bouillabaisse','hot pot','mulligatawny','borscht','goulash','potage',
+          'vichyssoise','ribollita','pozole','ramen broth',
+        ], fridge: 4, freezer: 90 },
+      { name: 'Breakfast / Grains', keywords: [
+          'oat','oats','overnight oat','porridge','muesli','granola','bircher',
+          'chia','acai','smoothie bowl','peanut butter oat','baked oat',
+        ], fridge: 4, freezer: 60 },
+      { name: 'Dairy / Eggs',     keywords: [
+          'egg','cheese','cream','yoghurt','yogurt','mash','potato',
+          'quiche','frittata','omelette','omelet','soufflé','souffle','custard','pudding',
+          'gratin','dauphinoise','shakshuka','croque','stracciatella','panna cotta',
+          'crème','creme','scrambled','poached','baked egg','bread and butter',
+        ], fridge: 3, freezer: 30 },
+      { name: 'Vegetables',       keywords: [
+          'veg','salad','wrap','onion','garlic',
+          'vegetable','veggie','ratatouille','caponata','bruschetta','caprese',
+          'hummus','falafel','dhal','dal','lentil','tofu','tempeh','eggplant',
+          'zucchini','courgette','spinach','kale','broccoli','cauliflower','pumpkin',
+          'squash','mushroom','roasted veg','stir fry','buddha bowl','tabbouleh',
+          'succotash','shakshuka',
+        ], fridge: 5, freezer: 90 },
       { name: 'Other',            keywords: [], fridge: 3, freezer: 60 },
     ];
+
+    const CATEGORY_VISUALS = {
+      'Meat':    { emoji: '🥩', bg: '#F5C8C0' },
+      'Poultry': { emoji: '🍗', bg: '#F5E5C0' },
+      'Fish / Seafood': { emoji: '🐟', bg: '#C0D8F5' },
+      'Rice / Pasta':   { emoji: '🍝', bg: '#F5EAC0' },
+      'Soup / Stock':       { emoji: '🍲', bg: '#F5CFA0' },
+      'Breakfast / Grains': { emoji: '🥣', bg: '#EFE5C8' },
+      'Dairy / Eggs':       { emoji: '🥚', bg: '#F5F0C0' },
+      'Vegetables':     { emoji: '🥦', bg: '#C0F0D0' },
+      'Other':          { emoji: '🍽️', bg: '#E8E4DC' },
+    };
 
     // ── GitHub config ─────────────────────────────────────────────────────────
     const GH_OWNER    = 'haansplosion';
@@ -489,9 +586,20 @@
     // ── Freshness logic ──────────────────────────────────────────────────────
     function bbKey(recipe) { return recipe.recipeId + '-' + recipe.cookedAt; }
 
+    function detectCategoryFromName(name) {
+      const lower = name.toLowerCase();
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      for (const cat of sl) {
+        if (cat.name === 'Other') continue;
+        if (cat.keywords && cat.keywords.some(k => lower.includes(k))) return cat.name;
+      }
+      return null;
+    }
+
     function getCategory(recipe) {
       const bb = bestBefore[bbKey(recipe)];
       if (bb && bb.category) return bb.category;
+      if (recipe.custom && recipe.category) return recipe.category;
       const name = (recipe.name || '').toLowerCase();
       const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
       for (const cat of sl) {
@@ -563,21 +671,23 @@
       const container = document.getElementById('mainContent');
       const summaryEl = document.getElementById('summary');
 
+      const combined = [...allRecipes, ...customRecipes];
+
       const filtered = currentFilter === 'all'
-        ? allRecipes
-        : allRecipes.filter(r => getStatus(r).status === currentFilter);
+        ? combined
+        : combined.filter(r => getStatus(r).status === currentFilter);
 
       let safe = 0, caution = 0, expired = 0;
-      for (const r of allRecipes) {
+      for (const r of combined) {
         const s = getStatus(r).status;
         if (s === 'safe') safe++;
         else if (s === 'caution') caution++;
         else if (s === 'expired') expired++;
       }
 
-      if (allRecipes.length > 0) {
+      if (combined.length > 0) {
         summaryEl.style.display = 'grid';
-        document.getElementById('countTotal').textContent = allRecipes.length;
+        document.getElementById('countTotal').textContent = combined.length;
         document.getElementById('countSafe').textContent = safe;
         document.getElementById('countCaution').textContent = caution;
         document.getElementById('countExpired').textContent = expired;
@@ -587,9 +697,9 @@
 
       if (filtered.length === 0) {
         container.innerHTML = '<div class="empty-state"><div class="emoji">' +
-          (allRecipes.length === 0 ? '🍽️' : '✓') + '</div><h2>' +
-          (allRecipes.length === 0 ? 'No cooking history yet' : 'Nothing here') + '</h2><p>' +
-          (allRecipes.length === 0 ? 'Syncing your Cookidoo account…' : 'Try a different filter.') + '</p></div>';
+          (combined.length === 0 ? '🍽️' : '✓') + '</div><h2>' +
+          (combined.length === 0 ? 'No cooking history yet' : 'Nothing here') + '</h2><p>' +
+          (combined.length === 0 ? 'Syncing your Cookidoo account…' : 'Try a different filter.') + '</p></div>';
         return;
       }
 
@@ -601,9 +711,12 @@
         const cookedDate = new Date(recipe.cookedAt);
         const cookedStr = cookedDate.toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' });
 
-        const imgHtml = recipe.imgSrc
-          ? '<img class="card-image" src="' + recipe.imgSrc + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=card-image-placeholder>🍳</div>\'">'
-          : '<div class="card-image-placeholder">🍳</div>';
+        const visuals = CATEGORY_VISUALS[getCategory(recipe)] || CATEGORY_VISUALS['Other'];
+        const imgHtml = recipe.custom
+          ? '<div class="card-image-custom" style="background:' + visuals.bg + '">' + visuals.emoji + '</div>'
+          : (recipe.imgSrc
+            ? '<img class="card-image" src="' + recipe.imgSrc + '" alt="" loading="lazy" onerror="this.parentNode.innerHTML=\'<div class=card-image-placeholder>🍳</div>\'">'
+            : '<div class="card-image-placeholder">🍳</div>');
 
         const badgeClass = status === 'eaten' ? 'eaten' : status;
         const badgeIcon = { safe: '✓', caution: '⚠', expired: '✕', eaten: '✓' }[status] || '?';
@@ -670,13 +783,57 @@
       return data;
     }
 
-    // ── Poll the JSON file until lastSynced changes, confirming Pages is live ──
-    async function pollAndReload() {
+    // ── Poll workflow run via API, then wait for Pages to reflect the new JSON ──
+    async function pollAndReload(dispatchedAt) {
       const prevSynced = lastSynced;
-      const deadline = Date.now() + 300000; // 5 min max
-      await new Promise(r => setTimeout(r, 20000)); // scrape + deploy warmup
+      const pat = localGet('githubPat', null);
+      const deadline = Date.now() + 600000; // 10 min total
 
-      while (Date.now() < deadline) {
+      // Step 1: find the run that was just queued (up to 30s for it to appear)
+      let runId = null;
+      const findRunDeadline = Date.now() + 30000;
+      while (Date.now() < findRunDeadline) {
+        await new Promise(r => setTimeout(r, 5000));
+        try {
+          const res = await fetch(
+            'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO +
+            '/actions/workflows/' + GH_WORKFLOW + '/runs?branch=' + encodeURIComponent(GH_BRANCH) + '&per_page=5',
+            { headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' } }
+          );
+          if (res.ok) {
+            const d = await res.json();
+            const run = (d.workflow_runs || []).find(r => new Date(r.created_at) >= dispatchedAt);
+            if (run) { runId = run.id; break; }
+          }
+        } catch {}
+      }
+
+      // Step 2: poll the run until it completes
+      if (runId) {
+        while (Date.now() < deadline) {
+          await new Promise(r => setTimeout(r, 8000));
+          try {
+            const res = await fetch(
+              'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO + '/actions/runs/' + runId,
+              { headers: { 'Authorization': 'Bearer ' + pat, 'Accept': 'application/vnd.github+json' } }
+            );
+            if (res.ok) {
+              const run = await res.json();
+              if (run.status === 'completed') {
+                if (run.conclusion !== 'success') throw new Error('Scrape failed (' + run.conclusion + ')');
+                break;
+              }
+              setStatus(run.status === 'in_progress' ? 'Scraping Cookidoo…' : 'Queued — waiting to start…', 'warn');
+            }
+          } catch (e) { if (e.message.startsWith('Scrape failed')) throw e; }
+        }
+      }
+
+      // Step 3: scrape done — poll Pages JSON until the deploy goes live (up to 3 more min)
+      setStatus('Syncing… deploying to Pages', 'warn');
+      const pagesDeadline = Math.min(Date.now() + 180000, deadline);
+      while (Date.now() < pagesDeadline) {
+        await new Promise(r => setTimeout(r, 10000));
         try {
           const res = await fetch('./data/cook-history.json?v=' + Date.now());
           if (res.ok) {
@@ -692,8 +849,6 @@
             }
           }
         } catch {}
-        setStatus('Syncing… deploying to Pages', 'warn');
-        await new Promise(r => setTimeout(r, 10000));
       }
       setStatus('Sync triggered — refresh in a minute if data hasn\'t updated', 'warn');
     }
@@ -709,6 +864,7 @@
       setStatus('Triggering scrape…', 'warn');
 
       try {
+        const dispatchedAt = new Date();
         const res = await fetch(
           'https://api.github.com/repos/' + GH_OWNER + '/' + GH_REPO +
           '/actions/workflows/' + GH_WORKFLOW + '/dispatches',
@@ -729,7 +885,7 @@
         }
         if (!res.ok) throw new Error('Could not trigger sync (HTTP ' + res.status + ')');
         setStatus('Scraping Cookidoo…', 'warn');
-        await pollAndReload();
+        await pollAndReload(dispatchedAt);
       } catch (err) {
         setStatus('Sync failed', 'err');
         showToast('✕ ' + err.message);
@@ -826,7 +982,7 @@
     function openExpiryModal(recipeId, cookedAt, encodedName) {
       editingKey = recipeId + '-' + cookedAt;
       const name = decodeURIComponent(encodedName);
-      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || { recipeId, cookedAt, name };
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || customRecipes.find(r => bbKey(r) === editingKey) || { recipeId, cookedAt, name };
       const storage = getStorage(recipe);
       const bb = bestBefore[editingKey];
       const currentCategory = getCategory(recipe);
@@ -841,13 +997,14 @@
 
       document.getElementById('expiryDays').value = (bb && bb.customDays && bb.customDays[storage]) ? bb.customDays[storage] : getShelfDays(recipe, storage);
       document.getElementById('expiryDate').value = (bb && bb.expiryDate) ? bb.expiryDate : '';
+      document.getElementById('expiryRemoveBtn').style.display = recipe.custom ? '' : 'none';
       document.getElementById('expiryModal').classList.add('open');
     }
 
     function onCategoryChange() {
       const catName = document.getElementById('expiryCategory').value;
-      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
-      const storage = getStorage(recipe);
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || customRecipes.find(r => bbKey(r) === editingKey);
+      const storage = recipe ? getStorage(recipe) : 'fridge';
       const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
       const cat = sl.find(c => c.name === catName) || sl[sl.length - 1];
       document.getElementById('expiryDays').value = cat[storage];
@@ -856,10 +1013,21 @@
 
     function closeExpiryModal() { document.getElementById('expiryModal').classList.remove('open'); editingKey = null; }
 
+    function removeCustomRecipe() {
+      if (!editingKey) return;
+      customRecipes = customRecipes.filter(r => bbKey(r) !== editingKey);
+      localSet('customRecipes', customRecipes);
+      delete bestBefore[editingKey];
+      savePrefs();
+      closeExpiryModal();
+      render();
+      showToast('Dish removed');
+    }
+
     function saveExpiry() {
       if (!editingKey) return;
-      const recipe = allRecipes.find(r => bbKey(r) === editingKey);
-      const storage = getStorage(recipe);
+      const recipe = allRecipes.find(r => bbKey(r) === editingKey) || customRecipes.find(r => bbKey(r) === editingKey);
+      const storage = recipe ? getStorage(recipe) : 'fridge';
       const category = document.getElementById('expiryCategory').value;
       const days = parseInt(document.getElementById('expiryDays').value) || 3;
       const expiryDate = document.getElementById('expiryDate').value || null;
@@ -873,6 +1041,65 @@
       closeExpiryModal();
       render();
       showToast('✓ Expiry saved');
+    }
+
+    // ── Add custom dish ───────────────────────────────────────────────────────
+    function openAddModal() {
+      document.getElementById('addDishName').value = '';
+      document.getElementById('addDishModal').classList.add('open');
+      setTimeout(() => document.getElementById('addDishName').focus(), 200);
+    }
+
+    function closeAddModal() { document.getElementById('addDishModal').classList.remove('open'); }
+
+    function submitAddDish() {
+      const name = document.getElementById('addDishName').value.trim();
+      if (!name) return;
+      const category = detectCategoryFromName(name);
+      if (category) {
+        addCustomRecipe(name, category);
+        closeAddModal();
+      } else {
+        pendingCustomName = name;
+        closeAddModal();
+        openAddCategoryModal(name);
+      }
+    }
+
+    function openAddCategoryModal(name) {
+      document.getElementById('addCategoryModalSub').textContent =
+        '“' + name + '” — we couldn’t identify the category. Select the type of dish so we can estimate freshness.';
+      const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
+      document.getElementById('addCategorySelect').innerHTML = sl.map(c =>
+        '<option value="' + escHtml(c.name) + '">' + escHtml(c.name) + '</option>'
+      ).join('');
+      document.getElementById('addCategoryModal').classList.add('open');
+    }
+
+    function closeAddCategoryModal() {
+      document.getElementById('addCategoryModal').classList.remove('open');
+      pendingCustomName = '';
+    }
+
+    function confirmAddDish() {
+      const category = document.getElementById('addCategorySelect').value;
+      addCustomRecipe(pendingCustomName, category);
+      closeAddCategoryModal();
+    }
+
+    function addCustomRecipe(name, category) {
+      const recipe = {
+        recipeId: 'custom-' + Date.now(),
+        cookedAt: new Date().toISOString(),
+        name,
+        custom: true,
+        category,
+        imgSrc: null,
+      };
+      customRecipes.unshift(recipe);
+      localSet('customRecipes', customRecipes);
+      render();
+      showToast('✓ Added “' + name + '”');
     }
 
     // ── Toast ─────────────────────────────────────────────────────────────────
@@ -889,6 +1116,7 @@
     async function init() {
       shelfLife = localGet('shelfLife', DEFAULT_SHELF_LIFE);
       bestBefore = localGet('bestBefore', {});
+      customRecipes = localGet('customRecipes', []);
 
       // Show cached data immediately while fresh fetch loads
       const cached = localGet('cookHistory', null);
@@ -913,7 +1141,15 @@
     document.getElementById('settingsModal').addEventListener('click', e => { if (e.target === document.getElementById('settingsModal')) closeSettings(); });
     document.getElementById('expiryModal').addEventListener('click', e => { if (e.target === document.getElementById('expiryModal')) closeExpiryModal(); });
     document.getElementById('patModal').addEventListener('click', e => { if (e.target === document.getElementById('patModal')) closePatModal(); });
-    document.addEventListener('keydown', e => { if (e.key === 'Enter' && document.getElementById('patModal').classList.contains('open')) savePat(); });
+    document.getElementById('addDishModal').addEventListener('click', e => { if (e.target === document.getElementById('addDishModal')) closeAddModal(); });
+    document.getElementById('addCategoryModal').addEventListener('click', e => { if (e.target === document.getElementById('addCategoryModal')) closeAddCategoryModal(); });
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Enter') {
+        if (document.getElementById('patModal').classList.contains('open')) savePat();
+        if (document.getElementById('addDishModal').classList.contains('open')) submitAddDish();
+        if (document.getElementById('addCategoryModal').classList.contains('open')) confirmAddDish();
+      }
+    });
 
     init();
   </script>
