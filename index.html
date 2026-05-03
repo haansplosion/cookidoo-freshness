@@ -794,7 +794,8 @@
       const pat = localGet('githubPat', null);
       const deadline = Date.now() + 600000; // 10 min total
 
-      // Step 1: find the run that was just queued (up to 30s for it to appear)
+      // Step 1: find the run that was just queued.
+      // Use ±5 min tolerance around dispatchedAt to handle client/server clock skew.
       let runId = null;
       const findRunDeadline = Date.now() + 30000;
       while (Date.now() < findRunDeadline) {
@@ -807,7 +808,9 @@
           );
           if (res.ok) {
             const d = await res.json();
-            const run = (d.workflow_runs || []).find(r => new Date(r.created_at) >= dispatchedAt);
+            const run = (d.workflow_runs || []).find(r =>
+              Math.abs(new Date(r.created_at).getTime() - dispatchedAt.getTime()) < 300000
+            );
             if (run) { runId = run.id; break; }
           }
         } catch {}
@@ -834,10 +837,11 @@
         }
       }
 
-      // Step 3: scrape done — poll Pages JSON until the deploy goes live (up to 3 more min)
+      // Step 3: poll Pages JSON until the new lastSynced appears.
+      // Use the full remaining deadline — if runId was not found we don't know how
+      // far into the scrape we already are, so we need the whole window.
       setStatus('Syncing… deploying to Pages', 'warn');
-      const pagesDeadline = Math.min(Date.now() + 180000, deadline);
-      while (Date.now() < pagesDeadline) {
+      while (Date.now() < deadline) {
         await new Promise(r => setTimeout(r, 10000));
         try {
           const res = await fetch('./data/cook-history.json?v=' + Date.now());
