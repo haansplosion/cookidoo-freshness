@@ -384,14 +384,19 @@
     let pendingCustomName = '';
 
     const DEFAULT_SHELF_LIFE = [
-      { name: 'Meat / Poultry',   keywords: [
-          'chicken','beef','pork','lamb','mince','steak','rib','tinga','stroganoff','gyros',
-          'burger','hamburger','sausage','bacon','turkey','duck','veal','meatball','bolognese',
-          'ragu','ragù','kebab','chorizo','ham','schnitzel','brisket','wing','drumstick','patty',
+      { name: 'Meat',   keywords: [
+          'beef','pork','lamb','mince','steak','rib','stroganoff','gyros',
+          'burger','hamburger','sausage','bacon','veal','meatball','bolognese','bolognaise',
+          'ragu','ragù','kebab','chorizo','ham','brisket','patty',
           'chop','cutlet','pepperoni','salami','prosciutto','pulled pork','carnitas','meatloaf',
-          'corned beef','osso buco','rendang','katsu','saltimbocca','piccata','marsala',
-          'shepherd','cottage pie','moussaka','short rib','braised','roast chicken','hot dog',
-          'mortadella','pastrami','cassoulet','confit','rillettes','vitello','pollo',
+          'corned beef','osso buco','rendang','saltimbocca','piccata','marsala',
+          'shepherd','cottage pie','moussaka','short rib','hot dog',
+          'mortadella','pastrami','cassoulet','rillettes','vitello',
+        ], fridge: 3, freezer: 90 },
+      { name: 'Poultry', keywords: [
+          'chicken','turkey','duck','wing','drumstick','tinga','pollo',
+          'katsu','schnitzel','confit','poussin','roast chicken','quail','hen','pheasant',
+          'yakitori','cacciatore','coq au vin',
         ], fridge: 3, freezer: 90 },
       { name: 'Fish / Seafood',   keywords: [
           'fish','salmon','tuna','prawn','seafood','shrimp',
@@ -437,7 +442,8 @@
     ];
 
     const CATEGORY_VISUALS = {
-      'Meat / Poultry': { emoji: '🍗', bg: '#F5E0C0' },
+      'Meat':    { emoji: '🥩', bg: '#F5C8C0' },
+      'Poultry': { emoji: '🍗', bg: '#F5E5C0' },
       'Fish / Seafood': { emoji: '🐟', bg: '#C0D8F5' },
       'Rice / Pasta':   { emoji: '🍝', bg: '#F5EAC0' },
       'Soup / Stock':       { emoji: '🍲', bg: '#F5CFA0' },
