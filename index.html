@@ -597,9 +597,9 @@
     }
 
     function getCategory(recipe) {
-      if (recipe.custom && recipe.category) return recipe.category;
       const bb = bestBefore[bbKey(recipe)];
       if (bb && bb.category) return bb.category;
+      if (recipe.custom && recipe.category) return recipe.category;
       const name = (recipe.name || '').toLowerCase();
       const sl = shelfLife.length ? shelfLife : DEFAULT_SHELF_LIFE;
       for (const cat of sl) {

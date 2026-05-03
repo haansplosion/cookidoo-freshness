@@ -8,7 +8,8 @@ Tracks your Cookidoo recently cooked list and calculates best-before dates so yo
 - Recipe names + cook timestamps are parsed from the server-rendered HTML
 - Results are committed to `data/cook-history.json` and served via GitHub Pages
 - Best-before dates are calculated per dish category (fridge and freezer)
-- User preferences (fridge/freezer choice, eaten status, custom expiry) are stored in your browser's localStorage
+- Use the **+** button to manually add dishes you didn't cook via Cookidoo — the app auto-detects the category from the name, or lets you pick one
+- User preferences (fridge/freezer choice, eaten status, custom expiry, manually added dishes) are stored in your browser's localStorage
 
 ## Setup
 
