@@ -384,12 +384,51 @@
     let pendingCustomName = '';
 
     const DEFAULT_SHELF_LIFE = [
-      { name: 'Meat / Poultry',   keywords: ['chicken','beef','pork','lamb','mince','steak','ribs','tinga','stroganoff','gyros'], fridge: 3, freezer: 90 },
-      { name: 'Fish / Seafood',   keywords: ['fish','salmon','tuna','prawn','seafood','shrimp'], fridge: 2, freezer: 60 },
-      { name: 'Rice / Pasta',     keywords: ['rice','pasta','risotto','arroz','noodle','pad thai'], fridge: 4, freezer: 60 },
-      { name: 'Soup / Stock',     keywords: ['soup','broth','stock','miso'], fridge: 4, freezer: 90 },
-      { name: 'Dairy / Eggs',     keywords: ['egg','cheese','cream','yoghurt','yogurt','mash','potato'], fridge: 3, freezer: 30 },
-      { name: 'Vegetables',       keywords: ['veg','salad','wrap','onion','garlic'], fridge: 5, freezer: 90 },
+      { name: 'Meat / Poultry',   keywords: [
+          'chicken','beef','pork','lamb','mince','steak','rib','tinga','stroganoff','gyros',
+          'burger','hamburger','sausage','bacon','turkey','duck','veal','meatball','bolognese',
+          'ragu','ragù','kebab','chorizo','ham','schnitzel','brisket','wing','drumstick','patty',
+          'chop','cutlet','pepperoni','salami','prosciutto','pulled pork','carnitas','meatloaf',
+          'corned beef','osso buco','rendang','katsu','saltimbocca','piccata','marsala',
+          'shepherd','cottage pie','moussaka','short rib','braised','roast chicken','hot dog',
+          'mortadella','pastrami','cassoulet','confit','rillettes','vitello','pollo',
+        ], fridge: 3, freezer: 90 },
+      { name: 'Fish / Seafood',   keywords: [
+          'fish','salmon','tuna','prawn','seafood','shrimp',
+          'cod','snapper','barramundi','trout','sardine','anchovy','crab','lobster',
+          'mussel','oyster','scallop','squid','octopus','calamari','sashimi','sushi',
+          'halibut','mackerel','herring','whiting','flathead','dory','kingfish','bream',
+          'tilapia','mahi','clam','abalone','perch','bass','smoked salmon','gravlax',
+        ], fridge: 2, freezer: 60 },
+      { name: 'Rice / Pasta',     keywords: [
+          'rice','pasta','risotto','arroz','noodle','pad thai',
+          'spaghetti','carbonara','penne','fettuccine','linguine','gnocchi','ravioli',
+          'lasagne','lasagna','tagliatelle','pappardelle','orzo','macaroni','vermicelli',
+          'udon','ramen','soba','fried rice','paella','biryani','couscous','pilaf',
+          'arancini','fusilli','rigatoni','bucatini','orecchiette','ziti','tortellini',
+          'cannelloni','lo mein','chow mein','laksa','jambalaya','congee','pho',
+          'amatriciana','cacio e pepe','aglio e olio','primavera','puttanesca',
+        ], fridge: 4, freezer: 60 },
+      { name: 'Soup / Stock',     keywords: [
+          'soup','broth','stock','miso',
+          'chowder','bisque','minestrone','gazpacho','consommé','stew','velouté',
+          'bouillabaisse','hot pot','mulligatawny','borscht','goulash','potage',
+          'vichyssoise','ribollita','pozole','ramen broth',
+        ], fridge: 4, freezer: 90 },
+      { name: 'Dairy / Eggs',     keywords: [
+          'egg','cheese','cream','yoghurt','yogurt','mash','potato',
+          'quiche','frittata','omelette','omelet','soufflé','souffle','custard','pudding',
+          'gratin','dauphinoise','shakshuka','croque','stracciatella','panna cotta',
+          'crème','creme','scrambled','poached','baked egg','bread and butter',
+        ], fridge: 3, freezer: 30 },
+      { name: 'Vegetables',       keywords: [
+          'veg','salad','wrap','onion','garlic',
+          'vegetable','veggie','ratatouille','caponata','bruschetta','caprese',
+          'hummus','falafel','dhal','dal','lentil','tofu','tempeh','eggplant',
+          'zucchini','courgette','spinach','kale','broccoli','cauliflower','pumpkin',
+          'squash','mushroom','roasted veg','stir fry','buddha bowl','tabbouleh',
+          'succotash','shakshuka',
+        ], fridge: 5, freezer: 90 },
       { name: 'Other',            keywords: [], fridge: 3, freezer: 60 },
     ];
 
