@@ -1,6 +1,13 @@
 {
   "recipes": [
     {
+      "recipeId": "r141120",
+      "name": "Creamy coconut chicken curry",
+      "cookedAt": "2026-05-07T10:17:01.600Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/5C969489-DD99-4AB9-B179-D2B3EA9D0258/Derivates/D8F79629-27A5-4336-9755-08DF7318DC39.jpg",
+      "href": "/recipes/recipe/en-AU/r141120"
+    },
+    {
       "recipeId": "r611902",
       "name": "Apple and almond overnight oats (gut health)",
       "cookedAt": "2026-05-05T23:28:45.930Z",
@@ -97,14 +104,7 @@
       "cookedAt": "2026-03-06T07:31:39.773Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/5296584F-0789-451D-9E81-3F77C7923601/Derivates/68A86AEA-891D-4438-AB6B-40E71B84C30E.jpg",
       "href": "/recipes/recipe/en-AU/r777050"
-    },
-    {
-      "recipeId": "r132116",
-      "name": "Chicken in yoghurt",
-      "cookedAt": "2026-03-06T07:19:53.875Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/5296584F-0789-451D-9E81-3F77C7923601/Derivates/68A86AEA-891D-4438-AB6B-40E71B84C30E.jpg",
-      "href": "/recipes/recipe/en-AU/r132116"
     }
   ],
-  "lastSynced": "2026-05-07T08:13:44.983Z"
+  "lastSynced": "2026-05-07T13:26:38.624Z"
 }
