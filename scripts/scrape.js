@@ -17,6 +17,7 @@ async function fetchToken(email, password) {
     password,
   });
 
+  console.log(`POST ${TOKEN_URL}`);
   const res = await fetch(TOKEN_URL, {
     method: 'POST',
     headers: {
@@ -27,6 +28,7 @@ async function fetchToken(email, password) {
     body: body.toString(),
   });
 
+  console.log(`  → ${res.status} ${res.statusText}`);
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`Auth failed (${res.status}): ${text}`);
@@ -39,6 +41,7 @@ async function fetchPage(accessToken, page) {
   const url = 'https://cookidoo.com.au/organize/en-AU/cooking-history' +
     (page > 1 ? '?page=' + page : '');
 
+  console.log(`Fetching page ${page}: ${url}`);
   const res = await fetch(url, {
     headers: {
       'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
@@ -49,7 +52,13 @@ async function fetchPage(accessToken, page) {
     },
   });
 
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching page ${page}`);
+  const finalUrl = res.url !== url ? ` (redirected to ${res.url})` : '';
+  console.log(`  → ${res.status} ${res.statusText}${finalUrl}`);
+  if (!res.ok) {
+    const body = await res.text();
+    console.error(`  Response body (first 500 chars): ${body.slice(0, 500)}`);
+    throw new Error(`HTTP ${res.status} fetching page ${page}`);
+  }
   return res.text();
 }
 
@@ -117,6 +126,9 @@ async function main() {
 
   const recipes = await scrapeAll(tokenData.access_token);
   console.log(`Found ${recipes.length} recipes.`);
+  if (recipes.length === 0) {
+    console.warn('WARNING: 0 recipes found — page may have returned a login redirect or empty history');
+  }
 
   const output = {
     recipes,
@@ -129,6 +141,7 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error(err.message);
+  console.error('SCRAPE FAILED:', err.message);
+  if (err.stack) console.error(err.stack);
   process.exit(1);
 });
