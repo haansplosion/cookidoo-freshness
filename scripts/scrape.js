@@ -1,54 +1,110 @@
 'use strict';
 
 const { parse } = require('node-html-parser');
+const puppeteer = require('puppeteer');
 const fs = require('fs');
 const path = require('path');
 
-const TOKEN_URL = 'https://au.tmmobile.vorwerk-digital.com/ciam/auth/token';
-const CLIENT_ID = 'kupferwerk-client-nwot';
-const CLIENT_SECRET = 'Ls50ON1woySqs1dCdJge';
-const AUTH_HEADER = 'Basic ' + Buffer.from(CLIENT_ID + ':' + CLIENT_SECRET).toString('base64');
+const HISTORY_URL = 'https://cookidoo.com.au/organize/en-AU/cooking-history';
 
-async function fetchToken(email, password) {
-  const body = new URLSearchParams({
-    grant_type: 'password',
-    client_id: CLIENT_ID,
-    username: email,
-    password,
+async function getAuthCookies(email, password) {
+  console.log('Launching headless browser for authentication...');
+  const browser = await puppeteer.launch({
+    headless: true,
+    args: [
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-gpu',
+    ],
   });
 
-  console.log(`POST ${TOKEN_URL}`);
-  const res = await fetch(TOKEN_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/x-www-form-urlencoded',
-      'Accept': 'application/json',
-      'Authorization': AUTH_HEADER,
-    },
-    body: body.toString(),
-  });
+  try {
+    const page = await browser.newPage();
+    await page.setUserAgent(
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
 
-  console.log(`  → ${res.status} ${res.statusText}`);
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`Auth failed (${res.status}): ${text}`);
+    console.log(`Navigating to ${HISTORY_URL}`);
+    await page.goto(HISTORY_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+
+    const afterNavUrl = page.url();
+    console.log(`After navigation: ${afterNavUrl}`);
+
+    if (!afterNavUrl.includes('/cooking-history')) {
+      console.log('Redirected to auth page, filling credentials...');
+
+      // Wait for email/username input
+      await page.waitForSelector(
+        'input[type="email"], input[name="email"], input[name="username"], input[id*="email"]',
+        { timeout: 20000, visible: true }
+      );
+
+      const emailInput =
+        (await page.$('input[type="email"]')) ||
+        (await page.$('input[name="email"]')) ||
+        (await page.$('input[name="username"]'));
+
+      if (!emailInput) throw new Error('Cannot find email/username input on login page');
+      await emailInput.click({ clickCount: 3 });
+      await emailInput.type(email);
+      console.log('Filled email');
+
+      // Check if password is on same page or requires a separate step
+      let passwordInput = await page.$('input[type="password"]');
+
+      if (!passwordInput) {
+        // Multi-step login: submit email first
+        console.log('Multi-step login: submitting email...');
+        const nextBtn = await page.$('button[type="submit"], [type="submit"]');
+        if (!nextBtn) throw new Error('Cannot find next button after email');
+        await nextBtn.click();
+        await page.waitForSelector('input[type="password"]', { visible: true, timeout: 20000 });
+        passwordInput = await page.$('input[type="password"]');
+      }
+
+      if (!passwordInput) throw new Error('Cannot find password input');
+      await passwordInput.click({ clickCount: 3 });
+      await passwordInput.type(password);
+      console.log('Filled password');
+
+      const submitBtn = await page.$('button[type="submit"], [type="submit"]');
+      if (!submitBtn) throw new Error('Cannot find submit button');
+
+      await Promise.all([
+        page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }),
+        submitBtn.click(),
+      ]);
+
+      const afterLoginUrl = page.url();
+      console.log(`After login: ${afterLoginUrl}`);
+
+      // Navigate to history if we landed somewhere else (e.g. home page)
+      if (!afterLoginUrl.includes('/cooking-history')) {
+        console.log('Navigating to cooking history post-login...');
+        await page.goto(HISTORY_URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+        console.log(`Final URL: ${page.url()}`);
+      }
+    }
+
+    const cookies = await page.cookies();
+    console.log(`Got ${cookies.length} cookies`);
+    return cookies.map(c => `${c.name}=${c.value}`).join('; ');
+  } finally {
+    await browser.close();
   }
-
-  return res.json();
 }
 
-async function fetchPage(accessToken, page) {
-  const url = 'https://cookidoo.com.au/organize/en-AU/cooking-history' +
-    (page > 1 ? '?page=' + page : '');
+async function fetchPage(cookieHeader, pageNum) {
+  const url = HISTORY_URL + (pageNum > 1 ? '?page=' + pageNum : '');
+  console.log(`Fetching page ${pageNum}: ${url}`);
 
-  console.log(`Fetching page ${page}: ${url}`);
   const res = await fetch(url, {
     headers: {
       'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'accept-language': 'en-US,en;q=0.9',
-      'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/147.0.0.0 Safari/537.36',
-      'x-requested-with': 'xmlhttprequest',
-      'Authorization': 'Bearer ' + accessToken,
+      'user-agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      'cookie': cookieHeader,
     },
   });
 
@@ -57,7 +113,7 @@ async function fetchPage(accessToken, page) {
   if (!res.ok) {
     const body = await res.text();
     console.error(`  Response body (first 500 chars): ${body.slice(0, 500)}`);
-    throw new Error(`HTTP ${res.status} fetching page ${page}`);
+    throw new Error(`HTTP ${res.status} fetching page ${pageNum}`);
   }
   return res.text();
 }
@@ -89,15 +145,15 @@ function parseRecipes(html) {
   return { recipes, totalPages };
 }
 
-async function scrapeAll(accessToken) {
-  const html1 = await fetchPage(accessToken, 1);
+async function scrapeAll(cookieHeader) {
+  const html1 = await fetchPage(cookieHeader, 1);
   const { recipes: page1, totalPages } = parseRecipes(html1);
   let all = [...page1];
 
   const maxPages = Math.min(totalPages, 10);
   for (let p = 2; p <= maxPages; p++) {
     try {
-      const html = await fetchPage(accessToken, p);
+      const html = await fetchPage(cookieHeader, p);
       const { recipes } = parseRecipes(html);
       all = all.concat(recipes);
     } catch (e) {
@@ -120,14 +176,14 @@ async function main() {
   const password = process.env.COOKIDOO_PASSWORD;
   if (!email || !password) throw new Error('COOKIDOO_EMAIL and COOKIDOO_PASSWORD must be set');
 
-  console.log('Authenticating with Cookidoo…');
-  const tokenData = await fetchToken(email, password);
-  console.log('Auth OK. Scraping cooking history…');
+  console.log('Getting auth cookies via browser...');
+  const cookieHeader = await getAuthCookies(email, password);
+  console.log('Auth OK. Scraping cooking history...');
 
-  const recipes = await scrapeAll(tokenData.access_token);
+  const recipes = await scrapeAll(cookieHeader);
   console.log(`Found ${recipes.length} recipes.`);
   if (recipes.length === 0) {
-    console.warn('WARNING: 0 recipes found — page may have returned a login redirect or empty history');
+    console.warn('WARNING: 0 recipes found — cookies may be invalid or history is empty');
   }
 
   const output = {
