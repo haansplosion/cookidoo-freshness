@@ -1,9 +1,16 @@
 {
   "recipes": [
     {
+      "recipeId": "r924302",
+      "name": "Udon with chicken and mushrooms",
+      "cookedAt": "2026-06-01T07:33:36.934Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/1d82b90ba67aaa5018976775b11f0ee6/Derivates/7d81d2ea0c0c75419669df9de14834d23eab3c2c.jpg",
+      "href": "/recipes/recipe/en-AU/r924302"
+    },
+    {
       "recipeId": "r611902",
       "name": "Apple and almond overnight oats (gut health)",
-      "cookedAt": "2026-05-26T05:33:51.759Z",
+      "cookedAt": "2026-06-01T07:06:08.115Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/9A3D2824-6EF6-4CB0-9B56-6B38C4D49EB0/Derivates/A78D6343-7FA1-40DD-9B3A-FE60EE63A8F9.jpg",
       "href": "/recipes/recipe/en-AU/r611902"
     },
@@ -97,14 +104,7 @@
       "cookedAt": "2026-03-11T08:00:59.219Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/4FDC0993-D47F-475D-8309-213A6A53719F/Derivates/4cb44856-eaba-4b3e-8f38-49c2589efb83.jpg",
       "href": "/recipes/recipe/en-AU/r437202"
-    },
-    {
-      "recipeId": "r376059",
-      "name": "Arroz blanco con verduras",
-      "cookedAt": "2026-03-09T06:14:16.644Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/8BAF8BBC-65F3-44BA-9DB1-B458400D0880/Derivates/49361350-4F1A-4354-8CF7-DA728FFC2269.jpg",
-      "href": "/recipes/recipe/en-AU/r376059"
     }
   ],
-  "lastSynced": "2026-06-01T02:36:57.536Z"
+  "lastSynced": "2026-06-01T11:08:00.316Z"
 }
