@@ -1,18 +1,25 @@
 {
   "recipes": [
     {
+      "recipeId": "r67224",
+      "name": "Meatballs with tomato sauce",
+      "cookedAt": "2026-06-07T07:13:47.784Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
+      "href": "/recipes/recipe/en-AU/r67224"
+    },
+    {
+      "recipeId": "r611902",
+      "name": "Apple and almond overnight oats (gut health)",
+      "cookedAt": "2026-06-07T04:43:06.747Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/9A3D2824-6EF6-4CB0-9B56-6B38C4D49EB0/Derivates/A78D6343-7FA1-40DD-9B3A-FE60EE63A8F9.jpg",
+      "href": "/recipes/recipe/en-AU/r611902"
+    },
+    {
       "recipeId": "r924302",
       "name": "Udon with chicken and mushrooms",
       "cookedAt": "2026-06-01T07:33:36.934Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/1d82b90ba67aaa5018976775b11f0ee6/Derivates/7d81d2ea0c0c75419669df9de14834d23eab3c2c.jpg",
       "href": "/recipes/recipe/en-AU/r924302"
-    },
-    {
-      "recipeId": "r611902",
-      "name": "Apple and almond overnight oats (gut health)",
-      "cookedAt": "2026-06-01T07:06:08.115Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/9A3D2824-6EF6-4CB0-9B56-6B38C4D49EB0/Derivates/A78D6343-7FA1-40DD-9B3A-FE60EE63A8F9.jpg",
-      "href": "/recipes/recipe/en-AU/r611902"
     },
     {
       "recipeId": "r819754",
@@ -97,14 +104,7 @@
       "cookedAt": "2026-03-27T08:13:00.349Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/52879B18-3CFD-4FA1-B947-998D488063B5/Derivates/6D1D65A7-FD9F-47A5-A22F-F911FD87E88C.jpg",
       "href": "/recipes/recipe/en-AU/r614818"
-    },
-    {
-      "recipeId": "r437202",
-      "name": "Beef Stroganoff",
-      "cookedAt": "2026-03-11T08:00:59.219Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/4FDC0993-D47F-475D-8309-213A6A53719F/Derivates/4cb44856-eaba-4b3e-8f38-49c2589efb83.jpg",
-      "href": "/recipes/recipe/en-AU/r437202"
     }
   ],
-  "lastSynced": "2026-06-07T02:31:15.782Z"
+  "lastSynced": "2026-06-07T08:43:38.281Z"
 }
