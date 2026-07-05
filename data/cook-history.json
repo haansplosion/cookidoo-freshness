@@ -1,18 +1,18 @@
 {
   "recipes": [
     {
+      "recipeId": "r67224",
+      "name": "Meatballs with tomato sauce",
+      "cookedAt": "2026-07-05T07:52:12.815Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
+      "href": "/recipes/recipe/en-AU/r67224"
+    },
+    {
       "recipeId": "r611902",
       "name": "Apple and almond overnight oats (gut health)",
       "cookedAt": "2026-06-30T08:37:23.682Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/9A3D2824-6EF6-4CB0-9B56-6B38C4D49EB0/Derivates/A78D6343-7FA1-40DD-9B3A-FE60EE63A8F9.jpg",
       "href": "/recipes/recipe/en-AU/r611902"
-    },
-    {
-      "recipeId": "r67224",
-      "name": "Meatballs with tomato sauce",
-      "cookedAt": "2026-06-21T07:20:46.159Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
-      "href": "/recipes/recipe/en-AU/r67224"
     },
     {
       "recipeId": "r924302",
@@ -106,5 +106,5 @@
       "href": "/recipes/recipe/en-AU/r614818"
     }
   ],
-  "lastSynced": "2026-07-05T01:58:17.692Z"
+  "lastSynced": "2026-07-05T08:38:50.488Z"
 }
