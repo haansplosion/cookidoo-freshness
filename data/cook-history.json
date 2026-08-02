@@ -1,18 +1,18 @@
 {
   "recipes": [
     {
+      "recipeId": "r67224",
+      "name": "Meatballs with tomato sauce",
+      "cookedAt": "2026-08-02T06:52:15.852Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
+      "href": "/recipes/recipe/en-AU/r67224"
+    },
+    {
       "recipeId": "r924304",
       "name": "Risotto bolognese",
       "cookedAt": "2026-07-25T06:00:04.110Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/d9e34a38c3c5d6c5c63158e8fea5e069/Derivates/853974d2de712bbee47868496181d6ec99d1bdcc.jpg",
       "href": "/recipes/recipe/en-AU/r924304"
-    },
-    {
-      "recipeId": "r67224",
-      "name": "Meatballs with tomato sauce",
-      "cookedAt": "2026-07-22T07:36:23.652Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
-      "href": "/recipes/recipe/en-AU/r67224"
     },
     {
       "recipeId": "r611902",
@@ -106,5 +106,5 @@
       "href": "/recipes/recipe/en-AU/r614818"
     }
   ],
-  "lastSynced": "2026-08-02T01:44:27.741Z"
+  "lastSynced": "2026-08-02T08:03:04.000Z"
 }
