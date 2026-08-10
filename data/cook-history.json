@@ -1,6 +1,13 @@
 {
   "recipes": [
     {
+      "recipeId": "r52587",
+      "name": "Pollo al cilantro",
+      "cookedAt": "2026-08-10T07:16:16.227Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/2447571E-69B9-4E57-BF90-C644F218260E/Derivates/7E5035AB-DB69-4F93-AD0C-E2A5B58BF2BB.jpg",
+      "href": "/recipes/recipe/en-AU/r52587"
+    },
+    {
       "recipeId": "r67224",
       "name": "Meatballs with tomato sauce",
       "cookedAt": "2026-08-06T07:43:49.472Z",
@@ -99,12 +106,12 @@
       "href": "/recipes/recipe/en-AU/r490170"
     },
     {
-      "recipeId": "r614818",
-      "name": "Miso chicken noodle soup (gut health)",
-      "cookedAt": "2026-03-27T08:13:00.349Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/52879B18-3CFD-4FA1-B947-998D488063B5/Derivates/6D1D65A7-FD9F-47A5-A22F-F911FD87E88C.jpg",
-      "href": "/recipes/recipe/en-AU/r614818"
+      "recipeId": "r918188",
+      "name": "Pollo en salsa de limón y hierbas con arroz",
+      "cookedAt": "2026-02-10T08:28:31.549Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/b6ce98cceb09d0c19ddde214a84da67a/Derivates/c3cfa2697ad4d993428b037aabd4cf07da43500a.jpg",
+      "href": "/recipes/recipe/en-AU/r918188"
     }
   ],
-  "lastSynced": "2026-08-10T07:07:38.276Z"
+  "lastSynced": "2026-08-10T12:42:04.277Z"
 }
