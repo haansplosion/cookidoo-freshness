@@ -1,6 +1,13 @@
 {
   "recipes": [
     {
+      "recipeId": "r136644",
+      "name": "Chicken fusilli with mushrooms",
+      "cookedAt": "2026-08-17T07:47:10.742Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/B580E298-49AC-4911-81B6-2D709C92B701/Derivates/1782E996-6C61-46C3-9DAB-FDF62CB62FEB.jpg",
+      "href": "/recipes/recipe/en-AU/r136644"
+    },
+    {
       "recipeId": "r611902",
       "name": "Apple and almond overnight oats (gut health)",
       "cookedAt": "2026-08-15T05:27:44.508Z",
@@ -99,11 +106,11 @@
       "href": "/recipes/recipe/en-AU/r792451"
     },
     {
-      "recipeId": "r490170",
-      "name": "Light Browning Onions and Garlic",
-      "cookedAt": "2026-04-03T08:07:55.098Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/70819063-abfb-47d5-b7a8-e7dc2ac4eac5/Derivates/c6cf707e-45c4-4eef-b3cc-c1c107609106.jpg",
-      "href": "/recipes/recipe/en-AU/r490170"
+      "recipeId": "r137998",
+      "name": "Tandoori paste",
+      "cookedAt": "2026-02-10T10:19:25.050Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/3f07e3e7201aa2d686dd9cf2c20520ff/Derivates/f48d67d00e6abc0a63b1c07bda29a8173dcdf2af.jpg",
+      "href": "/recipes/recipe/en-AU/r137998"
     },
     {
       "recipeId": "r918188",
@@ -113,5 +120,5 @@
       "href": "/recipes/recipe/en-AU/r918188"
     }
   ],
-  "lastSynced": "2026-08-17T06:31:06.004Z"
+  "lastSynced": "2026-08-17T12:20:11.469Z"
 }
