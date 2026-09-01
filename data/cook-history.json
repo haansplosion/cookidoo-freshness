@@ -1,6 +1,13 @@
 {
   "recipes": [
     {
+      "recipeId": "r67224",
+      "name": "Meatballs with tomato sauce",
+      "cookedAt": "2026-09-01T08:05:06.237Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
+      "href": "/recipes/recipe/en-AU/r67224"
+    },
+    {
       "recipeId": "r136644",
       "name": "Chicken fusilli with mushrooms",
       "cookedAt": "2026-08-30T08:36:14.315Z",
@@ -27,13 +34,6 @@
       "cookedAt": "2026-08-15T05:27:44.508Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/9A3D2824-6EF6-4CB0-9B56-6B38C4D49EB0/Derivates/A78D6343-7FA1-40DD-9B3A-FE60EE63A8F9.jpg",
       "href": "/recipes/recipe/en-AU/r611902"
-    },
-    {
-      "recipeId": "r67224",
-      "name": "Meatballs with tomato sauce",
-      "cookedAt": "2026-08-14T07:59:15.391Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
-      "href": "/recipes/recipe/en-AU/r67224"
     },
     {
       "recipeId": "r52587",
@@ -127,5 +127,5 @@
       "href": "/recipes/recipe/en-AU/r918188"
     }
   ],
-  "lastSynced": "2026-09-01T02:29:56.538Z"
+  "lastSynced": "2026-09-01T10:42:44.588Z"
 }
