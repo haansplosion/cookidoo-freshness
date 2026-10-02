@@ -1,6 +1,13 @@
 {
   "recipes": [
     {
+      "recipeId": "r793326",
+      "name": "Tex-mex salmon burrito bowl (Diabetes)",
+      "cookedAt": "2026-10-02T07:14:23.611Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/d898d7929826701d96946da4563d4302/Derivates/850191859aacdd048ff54a0621fcdf8953e8e87b.jpg",
+      "href": "/recipes/recipe/en-AU/r793326"
+    },
+    {
       "recipeId": "r136644",
       "name": "Chicken fusilli with mushrooms",
       "cookedAt": "2026-09-30T08:10:30.112Z",
@@ -99,11 +106,11 @@
       "href": "/recipes/recipe/en-AU/r494132"
     },
     {
-      "recipeId": "r774411",
-      "name": "Arroz blanco con verduras",
-      "cookedAt": "2026-04-18T02:15:27.090Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/8BAF8BBC-65F3-44BA-9DB1-B458400D0880/Derivates/49361350-4F1A-4354-8CF7-DA728FFC2269.jpg",
-      "href": "/recipes/recipe/en-AU/r774411"
+      "recipeId": "r68368",
+      "name": "Vegetable stock paste",
+      "cookedAt": "2026-02-14T02:05:28.210Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/6b8958acbfd91dbbb0202b9f0b9683e5/Derivates/37046683a68b5123b00d0b1f04d51c40cbe8b796.jpg",
+      "href": "/recipes/recipe/en-AU/r68368"
     },
     {
       "recipeId": "r149583",
@@ -127,5 +134,5 @@
       "href": "/recipes/recipe/en-AU/r918188"
     }
   ],
-  "lastSynced": "2026-10-02T03:00:21.409Z"
+  "lastSynced": "2026-10-02T11:31:54.831Z"
 }
