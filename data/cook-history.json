@@ -1,6 +1,13 @@
 {
   "recipes": [
     {
+      "recipeId": "r793326",
+      "name": "Tex-mex salmon burrito bowl (Diabetes)",
+      "cookedAt": "2026-10-23T07:16:09.531Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/d898d7929826701d96946da4563d4302/Derivates/850191859aacdd048ff54a0621fcdf8953e8e87b.jpg",
+      "href": "/recipes/recipe/en-AU/r793326"
+    },
+    {
       "recipeId": "r67224",
       "name": "Meatballs with tomato sauce",
       "cookedAt": "2026-10-19T06:48:21.518Z",
@@ -13,13 +20,6 @@
       "cookedAt": "2026-10-04T08:26:56.534Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/235e020494906e894e523f1763ecbd0d/Derivates/0b3b00435fed3b3ca1526d5f3d4c48c78d7375bc.jpg",
       "href": "/recipes/recipe/en-AU/r921817"
-    },
-    {
-      "recipeId": "r793326",
-      "name": "Tex-mex salmon burrito bowl (Diabetes)",
-      "cookedAt": "2026-10-02T07:14:23.611Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/d898d7929826701d96946da4563d4302/Derivates/850191859aacdd048ff54a0621fcdf8953e8e87b.jpg",
-      "href": "/recipes/recipe/en-AU/r793326"
     },
     {
       "recipeId": "r136644",
@@ -141,5 +141,5 @@
       "href": "/recipes/recipe/en-AU/r918188"
     }
   ],
-  "lastSynced": "2026-10-23T02:25:27.349Z"
+  "lastSynced": "2026-10-23T10:40:21.356Z"
 }
