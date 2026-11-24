@@ -1,6 +1,13 @@
 {
   "recipes": [
     {
+      "recipeId": "r67224",
+      "name": "Meatballs with tomato sauce",
+      "cookedAt": "2026-11-24T07:20:41.883Z",
+      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
+      "href": "/recipes/recipe/en-AU/r67224"
+    },
+    {
       "recipeId": "r70569",
       "name": "Creamy chicken and sun-dried tomato pasta",
       "cookedAt": "2026-11-09T06:17:58.911Z",
@@ -13,13 +20,6 @@
       "cookedAt": "2026-10-23T07:16:09.531Z",
       "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/d898d7929826701d96946da4563d4302/Derivates/850191859aacdd048ff54a0621fcdf8953e8e87b.jpg",
       "href": "/recipes/recipe/en-AU/r793326"
-    },
-    {
-      "recipeId": "r67224",
-      "name": "Meatballs with tomato sauce",
-      "cookedAt": "2026-10-19T06:48:21.518Z",
-      "imgSrc": "https://assets.tmecosys.com/image/upload/t_web_shared_recipe_221x240/img/recipe/ras/Assets/da8bb8d6f73d46d01ab80f2fcac14630/Derivates/b80699b2bf92d7e127fc59dbaabbb6dd5f5263b8.jpg",
-      "href": "/recipes/recipe/en-AU/r67224"
     },
     {
       "recipeId": "r921817",
@@ -148,5 +148,5 @@
       "href": "/recipes/recipe/en-AU/r918188"
     }
   ],
-  "lastSynced": "2026-11-24T03:34:55.023Z"
+  "lastSynced": "2026-11-24T16:40:24.634Z"
 }
